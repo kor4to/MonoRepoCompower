@@ -1,0 +1,37 @@
+from ..extensions import db
+from datetime import datetime
+from sqlalchemy.schema import UniqueConstraint
+
+# TABLA 1: El stock actual
+class InventoryStock(db.Model):
+    __tablename__ = 'inventory_stock'
+    id = db.Column(db.Integer, primary_key=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
+    warehouse_id = db.Column(db.Integer, db.ForeignKey('warehouses.id'), nullable=False)
+    quantity = db.Column(db.Numeric(10, 2), nullable=False, default=0.00)
+
+    product = db.relationship('Product')
+    warehouse = db.relationship('Warehouse')
+
+    # Regla: No puede haber dos entradas para el mismo producto en el mismo almacén
+    __table_args__ = (UniqueConstraint('product_id', 'warehouse_id', name='_product_warehouse_uc'),)
+
+# TABLA 2: El historial (Kardex)
+class InventoryTransaction(db.Model):
+    __tablename__ = 'inventory_transactions'
+    id = db.Column(db.Integer, primary_key=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
+    warehouse_id = db.Column(db.Integer, db.ForeignKey('warehouses.id'), nullable=False)
+
+    quantity_change = db.Column(db.Numeric(10, 2), nullable=False) # ej. +50 o -10
+    new_quantity = db.Column(db.Numeric(10, 2), nullable=False) # El stock resultante
+
+    type = db.Column(db.String(50), nullable=False) # "Recepción de Compra", "Ajuste"
+    timestamp = db.Column(db.DateTime, default=datetime.now)
+    user_id = db.Column(db.String(255), nullable=False) # Auth0 sub
+
+    # Vínculo a la línea de la orden de compra
+    purchase_order_item_id = db.Column(db.Integer, db.ForeignKey('purchase_order_items.id'), nullable=True)
+
+    product = db.relationship('Product')
+    warehouse = db.relationship('Warehouse')
