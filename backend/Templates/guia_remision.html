@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Guía de Remisión {{ data.serie_numero }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 0.5cm;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 8.5pt;
+            margin: 0; /* MARGEN CERO PARA BODY */
+            padding: 1cm; /* PADDING SE MANTIENE */
+            line-height: 1.15;
+
+            /* --- INICIO CAMBIO: FOOTER AL FONDO --- */
+            /* display: flex; */ /* <-- LÍNEA ELIMINADA */
+            /* flex-direction: column; */ /* <-- LÍNEA ELIMINADA */
+            /* A4 (29.7cm) - 2*0.5cm (margin) = 28.7cm */
+            /* min-height: 28.5cm; */ /* <-- LÍNEA ELIMINADA */
+            box-sizing: border-box;
+            /* --- FIN CAMBIO: FOOTER AL FONDO --- */
+        }
+
+        /* --- NUEVO: CONTENEDOR PRINCIPAL --- */
+        .main-content {
+            /* flex-grow: 1; */ /* <-- LÍNEA ELIMINADA */
+        }
+        /* --- FIN NUEVO --- */
+
+        .header,
+        .row {
+            display: flex;
+            flex-direction: row;
+            width: 100%;
+        }
+
+        .header {
+            display: flex;
+            flex-direction: row;
+            width: 100%;
+            margin-bottom: 5px;
+            align-items: center;
+        }
+
+        .header .logo {
+            width: 20%;
+            padding: 10px;
+            text-align: left;
+        }
+
+        .header .logo img {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .header .empresa {
+            width: 40%;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .header .empresa h4 {
+            margin: 0 0 2px 0;
+            font-size: 9.5pt;
+        }
+
+        .header .empresa p {
+            margin: 0;
+            font-size: 8pt;
+            line-height: 1.1;
+        }
+
+        .doc-details {
+            width: 40%;
+            border: 1px solid #000;
+            text-align: center;
+        }
+
+        .doc-details h4 {
+            margin: 0;
+            padding: 4px;
+            font-size: 9.5pt;
+        }
+
+        .doc-details p {
+            margin: 3px 0;
+            font-size: 8pt;
+        }
+
+        .info-box {
+            border: 1px solid #000;
+            margin-bottom: 5px;
+        }
+
+        .info-box .title {
+            background-color: #eee;
+            padding: 3px 5px;
+            font-weight: bold;
+            border-bottom: 1px solid #000;
+            font-size: 8pt;
+        }
+
+        .info-box .content {
+            /* padding: 5px; */ /* <-- LÍNEA ELIMINADA */
+            display: grid;
+            /* grid-template-columns: 1fr 1fr; */ /* <-- LÍNEA ELIMINADA */
+        }
+
+        .info-box .content-dest {
+            /* padding: 5px; */ /* <-- LÍNEA ELIMINADA */
+            display: grid;
+        }
+
+        .info-box .content-full h4 {
+            margin-top: 2px;
+            margin-bottom: 2px;
+            font-size: 9pt;
+        }
+
+        /* --- CLASE MODIFICADA --- */
+        .checkbox-p {
+            display: flex; /* <-- USAREMOS FLEXBOX */
+            align-items: flex-start; /* Alinea el [ ] con el inicio del texto */
+            margin: 0 !important; /* Elimina márgenes */
+            line-height: 1.1 !important; /* Súper junto */
+        }
+        /* --- FIN MODIFICACIÓN --- */
+
+        .label-up {
+            display: inline-block;
+            width: 17em;
+            font-weight: bold;
+        }
+        .label-center {
+            display: inline-block;
+            width: 17em;
+            font-weight: bold;
+        }
+        .label-down-l {
+            display: inline-block;
+            width: 12em;
+            font-weight: bold;
+        }
+        .label-down-r {
+            display: inline-block;
+            width: 10em;
+            font-weight: bold;
+        }
+
+        /* --- BLOQUE MODIFICADO --- */
+        .checkbox {
+            font-family: monospace; /* Asegura que [ ] y [X] midan lo mismo */
+            display: inline-block;
+            width: 1.5em; /* Ancho fijo para el checkbox */
+            text-align: center;
+            flex-shrink: 0; /* <-- AÑADIDO: Evita que el [ ] se encoja */
+        }
+        /* --- FIN DEL BLOQUE MODIFICADO --- */
+
+        .info-box .content p,
+        .info-box .content-full p {
+            margin: 1px 0;
+            line-height: 1.15;
+        }
+
+        .info-box .content-full {
+            padding: 5px;
+        }
+
+        /* --- INICIO CAMBIO: TABLA SIN LÍNEAS HORIZONTALES --- */
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 5px;
+            font-size: 8pt; /* Reducido para más ítems */
+
+            /* Bordes exteriores de la tabla */
+            border-top: 1px solid #000;
+            border-bottom: 1px solid #000;
+            border-left: 1px solid #000;
+            border-right: 1px solid #000;
+        }
+
+        .items-table th {
+            background-color: #eee;
+            font-size: 8pt;
+            padding: 2px 3px;
+            text-align: left;
+            border: 1px solid #000; /* Headers mantienen todos los bordes */
+        }
+
+        .items-table td {
+            padding: 2px 3px;
+            text-align: left;
+
+            /* Bordes verticales SI, horizontales NO */
+            border-left: 1px solid #000;
+            border-right: 1px solid #000;
+            border-top: none;
+            border-bottom: none;
+        }
+
+        /* Como la tabla tiene borde exterior, no necesitamos esto
+        .items-table td:first-child { border-left: none; }
+        .items-table td:last-child { border-right: none; }
+        */
+        /* --- FIN CAMBIO: TABLA --- */
+
+        /* Alineación a la derecha para CANT. */
+        .items-table .cantidad-col {
+            text-align: right;
+        }
+
+        /* --- INICIO CAMBIO: FOOTER --- */
+        .footer {
+            margin-top: 5px; /* Margen superior leve */
+            padding: 5px;
+            flex-shrink: 0; /* No se encoge */
+            /* Se eliminan propiedades flex de la v. anterior */
+        }
+
+        .footer .observaciones-texto {
+            margin: 0;
+            font-size: 8pt;
+        }
+
+        .footer .qr-container {
+            display: flex;
+            flex-direction: row;
+            align-items: flex-end; /* Alinea QR e info abajo */
+            margin-top: 5px; /* Espacio entre observaciones y QR */
+        }
+
+        .footer .qr-image-container {
+            margin-right: 5px; /* Espacio entre el QR y el texto */
+            flex-shrink: 0; /* No se encoge el QR */
+        }
+
+        .footer .qr-image-container img {
+            width: 60px; /* REDUCIDO A 60px */
+            height: 60px; /* REDUCIDO A 60px */
+        }
+
+        .footer .qr-text {
+            font-size: 7pt; /* Letra más pequeña para el texto del QR */
+            text-align: left; /* Alinea el texto a la izquierda */
+            line-height: 1.1; /* Compacta el interlineado */
+            /* Se adapta al espacio restante */
+            word-wrap: break-word; /* Si el hash es muy largo */
+        }
+
+        .footer p {
+            margin: 1px 0; /* Más compacto */
+            font-size: 8pt;
+        }
+        .footer strong {
+            font-size: 8pt;
+        }
+        /* --- FIN CAMBIO: FOOTER --- */
+    </style>
+</head>
+
+<body>
+
+    <!-- INICIO: CONTENEDOR PRINCIPAL -->
+    <div class="main-content">
+
+        <div class="header">
+            <div class="logo">
+                <img src="{{ data.logo_path }}" alt="Logo de la Empresa">
+            </div>
+            <div class="empresa">
+                <h4>COMPOWER INGENIERÍA ESPECIALIZADA S.A.C.</h4>
+                <p>CAL. SAN BORJA MZA. 2492 LOTE. 1 INT. 104 OTR. CERCADO DE SURCO LIMA - LIMA - SANTIAGO DE SURCO</p>
+            </div>
+            <div class="doc-details">
+                <h4>RUC Nº 20522348831</h4>
+                <h4>GUÍA DE REMISIÓN REMITENTE ELECTRÓNICA</h4>
+                <p>Nº {{ data.serie_numero }}</p>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="info-box" style="width: 100%;">
+                <div class="content-full">
+                    <p><span class="label-up">FECHA DE INICIO DE TRASLADO:</span> {{ data.fecha_traslado }}</p>
+                    <p><span class="label-up">DOMICILIO DE PARTIDA:</span> {{ data.partida.direccion }}</p>
+                    <p><span class="label-up">DOMICILIO DE DESTINO:</span> {{ data.llegada.direccion }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="info-box" style="width: 100%;">
+                <div class="content-full">
+                    <h4>DESTINATARIO</h4>
+                    <div class="content-dest">
+                    <p><span class="label-center">NOMBRE Y/O RAZON SOCIAL:</span> {{ data.destinatario.razon_social }}</p>
+                    <p><span class="label-center">RUC:</span> {{ data.destinatario.ruc }}</p>
+                    </div>
+
+
+                    <h4>UNIDAD DE TRANSPORTE/CONDUCTOR</h4>
+                    <!-- INLINE STYLE AÑADIDO PARA 2 COLUMNAS -->
+                    <div class="content" style="grid-template-columns: 1fr 1fr;">
+                        <p><span class="label-down-l">PLACA VEHÍCULO:</span> {{ data.conductor.placa }}</p>
+                        <p><span class="label-down-r">MARCA:</span> {{ data.conductor.marca }}</p>
+                        <p><span class="label-down-l">LICENCIA CONDUCIR:</span> {{ data.conductor.licencia }}</p>
+                        <p><span class="label-down-r">CONDUCTOR:</span> {{ data.conductor.nombre }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="info-box" style="width: 100%;">
+                <div class="title">MOTIVO DE TRASLADO</div>
+
+                <!-- WRAPPER .content-full AÑADIDO -->
+                <div class="content-full">
+                    <!-- PADDING INLINE ELIMINADO -->
+                    <div class="content" style="grid-template-columns: 1fr 1fr 1fr;">
+
+                        <div>
+                            <!-- CLASE .checkbox-p AÑADIDA -->
+                            <p class="checkbox-p">
+                                <span class="checkbox">
+                                    {% if data.motivo_traslado == '1' %}[X]{% else %}[ ]{% endif %}
+                                </span>
+                                Venta
+                            </p>
+                            <p class="checkbox-p">
+                                <span class="checkbox">
+                                    {% if data.motivo_traslado == '2' %}[X]{% else %}[ ]{% endif %}
+                                </span>
+                                Compra
+                            </p>
+                            <p class="checkbox-p">
+                                <span class="checkbox">
+                                    {% if data.motivo_traslado == '4' %}[X]{% else %}[ ]{% endif %}
+                                </span>
+                                Traslado entre establecimientos de la misma empresa
+                            </p>
+                        </div>
+
+                        <div>
+                            <p class="checkbox-p">
+                                <span class="checkbox">
+                                    {% if data.motivo_traslado == '8' %}[X]{% else %}[ ]{% endif %}
+                                </span>
+                                Importación
+                            </p>
+                            <p class="checkbox-p">
+                                <span class="checkbox">
+                                    {% if data.motivo_traslado == '9' %}[X]{% else %}[ ]{% endif %}
+                                </span>
+                                Exportación
+                            </p>
+                            <p class="checkbox-p">
+                                <span class="checkbox">
+                                    {% if data.motivo_traslado == '14' %}[X]{% else %}[ ]{% endif %}
+                                </span>
+                                Venta sujeta a confirmacion del comprador
+                            </p>
+                        </div>
+
+                        <div>
+                            <p class="checkbox-p">
+                                <span class="checkbox">
+                                    {% if data.motivo_traslado == '18' %}[X]{% else %}[ ]{% endif %}
+                                </span>
+                                Traslado emisor itinerante CP
+                            </p>
+                            <p class="checkbox-p">
+                                <span class="checkbox">
+                                    {% if data.motivo_traslado == '5' %}[X]{% else %}[ ]{% endif %}
+                                </span>
+                                Traslado a zona primaria
+                            </p>
+                            <p class="checkbox-p">
+                                <span class="checkbox">
+                                    {% if data.motivo_traslado == '13' %}[X]{% else %}[ ]{% endif %}
+                                </span>
+                                Otros {% if data.motivo_traslado == '13' %}({{ data.motivo }}){% endif %}
+                            </p>
+                        </div>
+
+                    </div>
+                </div> <!-- FIN WRAPPER .content-full -->
+            </div>
+        </div>
+
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th style="width: 5%;">ITEM</th>
+                    <th style="width: 15%;">CÓDIGO</th>
+                    <th style="width: 66%;">DESCRIPCIÓN</th> <!-- Ajustado el ancho -->
+                    <th style="width: 7%;" class="cantidad-col">CANT.</th> <!-- Reubicado y clase añadida -->
+                    <th style="width: 7%;">U.M.</th> <!-- Reubicado -->
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in data['items'] %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ item.codigo }}</td>
+                    <td>{{ item.descripcion }}</td>
+                    <td class="cantidad-col">{{ "%.2f"|format(item.cantidad|float) }}</td> <!-- Alineado a la derecha -->
+                    <td>{{ item.unidad }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+    </div>
+    <!-- FIN: CONTENEDOR PRINCIPAL -->
+
+
+    <!-- INICIO: FOOTER MODIFICADO -->
+    <div class="footer">
+        <div>
+            <strong>OBSERVACIONES:</strong>
+            <p class="observaciones-texto">{{ data.observaciones }}</p>
+        </div>
+
+        <div class="qr-container">
+            {% if data.qr_base64 %}
+            <div class="qr-image-container">
+                <img src="data:image/png;base64,{{ data.qr_base64 }}" alt="QR Code">
+            </div>
+            {% endif %}
+            <div class="qr-text">
+                <!-- Mostramos el hash que extrajimos en main.py -->
+                <p>{{ data.hash_qr }}</p>
+                <p>Representación impresa de la GUÍA DE REMISIÓN REMITENTE ELECTRÓNICA</p>
+                <p>Consulte el documento en https://e-factura.sunat.gob.pe/...</p>
+            </div>
+        </div>
+    </div>
+    <!-- FIN: FOOTER MODIFICADO -->
+
+</body>
+
+</html>

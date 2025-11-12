@@ -23,16 +23,18 @@ class Category(db.Model):
             'parent_name': self.parent.name if self.parent else None
         }
 
+
 class Product(db.Model):
     __tablename__ = 'products'
     id = db.Column(db.Integer, primary_key=True)
-    # SKU = Stock Keeping Unit (Código único)
     sku = db.Column(db.String(50), unique=True, nullable=False)
     name = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
     unit_of_measure = db.Column(db.String(20), nullable=False, default='UND')
 
-    # Llave foránea a la categoría
+    # --- ¡NUEVO CAMPO! Precio Estándar / Referencial ---
+    standard_price = db.Column(db.Numeric(10, 2), nullable=False, default=0.00)
+
     category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=False)
 
     def to_dict(self):
@@ -41,5 +43,7 @@ class Product(db.Model):
             'sku': self.sku,
             'name': self.name,
             'unit_of_measure': self.unit_of_measure,
-            'category_name': self.category.name if self.category else 'N/A'
+            'standard_price': float(self.standard_price),  # <-- Incluimos el precio
+            'category_name': self.category.name if self.category else 'N/A',
+            'category_id': self.category_id
         }

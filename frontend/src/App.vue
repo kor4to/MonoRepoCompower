@@ -217,6 +217,13 @@ watch(
                         </Button>
                       </RouterLink>
                     </li>
+                    <li v-if="userPermissions.includes('manage:inventory')">
+                      <RouterLink to="/inventory/adjust" v-slot="{ href, navigate, isActive }">
+                        <Button :variant="isActive ? 'secondary' : 'ghost'" class="w-full justify-start h-8" @click="navigate">
+                          Carga Masiva / Ajustes
+                        </Button>
+                      </RouterLink>
+                    </li>
                   </ul>
                 </AccordionContent>
               </AccordionItem>

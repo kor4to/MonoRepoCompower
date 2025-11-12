@@ -47,7 +47,7 @@ def create_app(config_class=Config):
     from .routes.warehouse_api import warehouse_api
     from .routes.category_api import category_api
     from .routes.transfer_api import transfer_api
-
+    from .routes.gre_api import gre_bp
 
 
 
@@ -62,7 +62,7 @@ def create_app(config_class=Config):
     app.register_blueprint(cost_center_api, url_prefix='/api/cost-centers')
     app.register_blueprint(purchase_api, url_prefix='/api/purchases')  # <-- ¡Y QUE ESTA TAMBIÉN EXISTA!
     app.register_blueprint(product_api, url_prefix='/api/products')
-
+    app.register_blueprint(gre_bp, url_prefix='/api/gre')
 
     # --- 4. MANEJADOR DE ERRORES ---
     @app.errorhandler(AuthError)
@@ -125,8 +125,20 @@ def _seed_database():
         db.session.add_all([cat_cables, cat_herr])
         db.session.commit()
 
-        prod_cable = Product(sku='CB-THW-14', name='CABLE/THW #14', unit_of_measure='Metros', category_id=cat_cables.id)
-        prod_clavo = Product(sku='HR-CLV-3', name='Clavos de 3"', unit_of_measure='Kilos', category_id=cat_herr.id)
+        prod_cable = Product(
+            sku='CB-THW-14',
+            name='CABLE/THW #14',
+            unit_of_measure='Metros',
+            standard_price=2.50,  # <-- Precio
+            category_id=cat_cables.id
+        )
+        prod_clavo = Product(
+            sku='HR-CLV-3',
+            name='Clavos de 3"',
+            unit_of_measure='Kilos',
+            standard_price=15.00,  # <-- Precio
+            category_id=cat_herr.id
+        )
         db.session.add_all([prod_cable, prod_clavo])
         db.session.commit()
 

@@ -22,7 +22,7 @@ import StockReportView from '@/views/inventory/StockReportView.vue'
 import StockTransferView from '@/views/inventory/StockTransferView.vue'
 import CreateTransferView from '@/views/inventory/CreateTransferView.vue'
 import WarehouseView from '@/views/inventory/WarehouseView.vue'
-
+import InventoryAdjustmentView from '@/views/inventory/InventoryAdjustmentView.vue'
 
 const routes = [
   {
@@ -126,7 +126,13 @@ const routes = [
     name: 'CreateStockTransfer',
     component: CreateTransferView,
     meta: { title: 'Crear Transferencia' }
-  }
+  },
+  {
+  path: '/inventory/adjust',
+  name: 'InventoryAdjustment',
+  component: InventoryAdjustmentView,
+  meta: { title: 'Ajuste de Inventario' }
+},
 ]
 
 // ... (el resto de tu archivo router, createRouter, etc. no cambia)

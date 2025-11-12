@@ -3,6 +3,7 @@ from ..models.product_catalog import Product, Category # <-- Importa Category
 from ..extensions import db # <-- Importa db
 from ..services.auth_service import requires_auth
 from sqlalchemy import or_
+import pandas as pd
 
 product_api = Blueprint('product_api', __name__)
 
@@ -58,6 +59,7 @@ def create_product(payload):
             name=data['name'],
             description=data.get('description', ''),
             unit_of_measure=data.get('um', 'UND'),
+            standard_price=data.get('standard_price', 0.00),
             category_id=data['category_id']
         )
         db.session.add(new_prod)
@@ -80,6 +82,7 @@ def update_product(product_id, payload):
         prod.name = data.get('name', prod.name)
         prod.description = data.get('description', prod.description)
         prod.unit_of_measure = data.get('um', prod.unit_of_measure)
+        prod.standard_price = data.get('standard_price', prod.standard_price)
         prod.category_id = data.get('category_id', prod.category_id)
 
         db.session.commit()
@@ -87,3 +90,84 @@ def update_product(product_id, payload):
     except Exception as e:
         db.session.rollback()
         return jsonify(error=str(e)), 500
+
+
+# --- API 5: Importación Masiva desde Excel ---
+@product_api.route('/import', methods=['POST'], strict_slashes=False)
+@requires_auth(required_permission='manage:catalog')
+def import_products(payload):
+    if 'file' not in request.files:
+        return jsonify(error="No se envió ningún archivo"), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify(error="No se seleccionó ningún archivo"), 400
+
+    try:
+        # 1. Leer el Excel con Pandas
+        df = pd.read_excel(file)
+
+        # 2. Validar columnas requeridas
+        required_columns = ['SKU', 'Nombre', 'Categoria'] # (UM, Descripcion y Precio son opcionales)
+        if not all(col in df.columns for col in required_columns):
+            return jsonify(error=f"El Excel debe tener las columnas: {', '.join(required_columns)}"), 400
+
+        created_count = 0
+        updated_count = 0
+        errors = []
+
+        # 3. Iterar sobre cada fila
+        for index, row in df.iterrows():
+            sku = str(row['SKU']).strip()
+            name = str(row['Nombre']).strip()
+            cat_name = str(row['Categoria']).strip()
+
+            # Buscar la categoría por nombre
+            category = Category.query.filter(db.func.lower(Category.name) == cat_name.lower()).first()
+            if not category:
+                # Si no existe, la creamos automáticamente (Opcional, pero útil)
+                category = Category(name=cat_name, description="Creada por importación")
+                db.session.add(category)
+                db.session.flush() # Para obtener el ID inmediatamente
+
+            # Buscar si el producto ya existe (por SKU)
+            product = Product.query.filter_by(sku=sku).first()
+
+            if product:
+                # ACTUALIZAR existente
+                product.name = name
+                product.category_id = category.id
+                if 'Descripcion' in row and pd.notna(row['Descripcion']):
+                    product.description = str(row['Descripcion'])
+                if 'UM' in row and pd.notna(row['UM']):
+                    product.unit_of_measure = str(row['UM'])
+                if 'Precio' in row and pd.notna(row['Precio']):
+                    product.standard_price = float(row['Precio'])
+                updated_count += 1
+            else:
+                # CREAR nuevo
+                new_prod = Product(
+                    sku=sku,
+                    name=name,
+                    category_id=category.id,
+                    description=str(row['Descripcion']) if 'Descripcion' in row and pd.notna(row['Descripcion']) else '',
+                    unit_of_measure=str(row['UM']) if 'UM' in row and pd.notna(row['UM']) else 'UND',
+                    standard_price=float(row['Precio']) if 'Precio' in row and pd.notna(row['Precio']) else 0.00
+                )
+                db.session.add(new_prod)
+                created_count += 1
+
+        db.session.commit()
+
+        return jsonify({
+            "message": "Importación completada",
+            "created": created_count,
+            "updated": updated_count
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"--- ERROR EN IMPORTACIÓN: {e} ---")
+        return jsonify(error=f"Error al procesar el archivo: {str(e)}"), 500
+
+

@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Input } from '@/components/ui/input/index.js'
 import { Label } from '@/components/ui/label/index.js'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select/index.js'
-import { Pencil } from 'lucide-vue-next'
+import { Loader2, Pencil, Upload } from 'lucide-vue-next' // <-- AÑADE Upload
 
 const { getAccessTokenSilently } = useAuth0()
 const products = ref([])
@@ -18,7 +18,13 @@ const error = ref(null)
 
 const isDialogOpen = ref(false)
 const modalMode = ref('create')
-const formData = ref({ id: null, sku: '', name: '', description: '', um: 'UND', category_id: null })
+const isSubmitting = ref(false) // <-- ¡AÑADE ESTA LÍNEA!
+const formData = ref({ id: null, sku: '', name: '', description: '', unit_of_measure: 'UND', standard_price: 0.00, category_id: null })
+// Ref para el input de archivo oculto
+const fileInput = ref(null)
+const isImporting = ref(false)
+
+
 
 // --- Cargar AMBOS, productos y categorías ---
 async function fetchData() {
@@ -64,6 +70,7 @@ function openEditModal(product) {
 }
 
 async function handleFormSubmit() {
+  isSubmitting.value = true
   let url = 'https://192.168.1.59:5000/api/products'
   let method = 'POST'
 
@@ -71,6 +78,19 @@ async function handleFormSubmit() {
     url = `https://192.168.1.59:5000/api/products/${formData.value.id}`
     method = 'PUT'
   }
+
+  // --- ¡AQUÍ ESTÁ LA CORRECCIÓN! ---
+  // Creamos un payload explícito para asegurarnos de enviar todos los campos,
+  // incluyendo el nuevo 'standard_price'.
+  const payload = {
+    sku: formData.value.sku,
+    name: formData.value.name,
+    description: formData.value.description,
+    um: formData.value.unit_of_measure, // Asegúrate que el backend espera 'um' o 'unit_of_measure'
+    standard_price: formData.value.standard_price, // <-- ¡IMPORTANTE!
+    category_id: formData.value.category_id
+  }
+  // --------------------------------
 
   try {
     const token = await getAccessTokenSilently()
@@ -80,23 +100,87 @@ async function handleFormSubmit() {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(formData.value)
+      body: JSON.stringify(payload) // Enviamos el payload
     })
     if (!response.ok) throw new Error('Error al guardar.')
 
     isDialogOpen.value = false
-    await fetchData() // Recargar productos
+    await fetchData()
   } catch (e) {
     alert(e.message)
+  } finally {
+    isSubmitting.value = false
   }
 }
+
+// --- Función para disparar el click en el input oculto ---
+function triggerImport() {
+  fileInput.value.click()
+}
+
+// --- Función para manejar la subida del archivo ---
+async function handleFileUpload(event) {
+  const file = event.target.files[0]
+  if (!file) return
+
+  isImporting.value = true
+
+  const formData = new FormData()
+  formData.append('file', file)
+
+  try {
+    const token = await getAccessTokenSilently()
+    const response = await fetch('https://192.168.1.59:5000/api/products/import', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+        // NOTA: No pongas 'Content-Type': 'application/json' aquí.
+        // El navegador lo pondrá automáticamente como 'multipart/form-data'
+      },
+      body: formData
+    })
+
+    const result = await response.json()
+
+    if (!response.ok) throw new Error(result.error || 'Error en la importación')
+
+    alert(`Importación Exitosa:\nCreados: ${result.created}\nActualizados: ${result.updated}`)
+    await fetchData() // Recargar la tabla
+
+  } catch (e) {
+    alert(e.message)
+  } finally {
+    isImporting.value = false
+    event.target.value = '' // Limpiar el input para poder subir el mismo archivo de nuevo si se quiere
+  }
+}
+
+
+
 </script>
 
 <template>
   <div>
     <div class="flex justify-between items-center mb-4">
       <h1 class="text-3xl font-bold">Gestión de Productos</h1>
-      <Button @click="openCreateModal">Crear Producto</Button>
+
+      <div class="flex gap-2">
+        <input
+          type="file"
+          ref="fileInput"
+          class="hidden"
+          accept=".xlsx, .xls"
+          @change="handleFileUpload"
+        />
+
+        <Button variant="outline" @click="triggerImport" :disabled="isImporting">
+          <Loader2 v-if="isImporting" class="h-4 w-4 animate-spin mr-2" />
+          <Upload v-else class="h-4 w-4 mr-2" />
+          Importar Excel
+        </Button>
+
+        <Button @click="openCreateModal">Crear Producto</Button>
+      </div>
     </div>
 
     <div v-if="isLoading">Cargando...</div>
@@ -110,7 +194,9 @@ async function handleFormSubmit() {
             <TableHead>Nombre</TableHead>
             <TableHead>Categoría</TableHead>
             <TableHead>UM</TableHead>
+            <TableHead class="text-right">Precio Ref.</TableHead>
             <TableHead>Acciones</TableHead>
+
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -119,6 +205,9 @@ async function handleFormSubmit() {
             <TableCell>{{ prod.name }}</TableCell>
             <TableCell>{{ prod.category_name }}</TableCell>
             <TableCell>{{ prod.unit_of_measure }}</TableCell>
+            <TableCell class="text-right">
+                S/ {{ parseFloat(prod.standard_price).toFixed(2) }}
+            </TableCell>
             <TableCell>
               <Button variant="outline" size="icon" @click="openEditModal(prod)">
                 <Pencil class="h-4 w-4" />
@@ -161,6 +250,10 @@ async function handleFormSubmit() {
                 </SelectGroup>
               </SelectContent>
             </Select>
+          </div>
+          <div class="grid grid-cols-4 items-center gap-4">
+            <Label for="price" class="text-right">Precio Ref. (S/)</Label>
+            <Input id="price" type="number" step="0.01" v-model="formData.standard_price" class="col-span-3" />
           </div>
         </div>
         <DialogFooter>

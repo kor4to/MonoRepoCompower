@@ -3,10 +3,11 @@ from ..extensions import db
 from ..models.warehouse import Warehouse
 from ..models.purchase_order import PurchaseOrder, PurchaseOrderItem, OrderStatus
 from ..models.inventory_models import InventoryStock, InventoryTransaction
-from ..models.product_catalog import Product
+from ..models.product_catalog import Product, Category
 from ..services.auth_service import requires_auth
 from sqlalchemy import or_, and_
 from sqlalchemy.orm import joinedload
+import pandas as pd
 
 inventory_api = Blueprint('inventory_api', __name__)
 
@@ -78,7 +79,30 @@ def receive_inventory(payload):
                 )
                 db.session.add(stock_entry)
 
-            # 4. Actualizar la cantidad de stock
+            # --- CÁLCULO DE COSTO PROMEDIO PONDERADO ---
+            # 1. Obtener datos actuales
+            product = Product.query.get(product_id)
+            current_total_stock = db.session.query(db.func.sum(InventoryStock.quantity)).filter_by(
+                product_id=product_id).scalar() or 0.0
+            current_total_stock = float(current_total_stock)
+            current_avg_price = float(product.standard_price)
+
+            # Precio de esta compra específica (buscamos en el item de la orden)
+            incoming_price = float(po_item.unit_price)
+
+            # 2. Fórmula: (Valor Actual + Valor Nuevo) / Cantidad Total Nueva
+            current_total_value = current_total_stock * current_avg_price
+            incoming_total_value = quantity_received * incoming_price
+
+            new_total_quantity = current_total_stock + quantity_received
+
+            if new_total_quantity > 0:
+                new_avg_price = (current_total_value + incoming_total_value) / new_total_quantity
+                # Actualizamos el precio maestro del producto
+                product.standard_price = new_avg_price
+            # -------------------------------------------
+
+            # 4. Actualizar la cantidad de stock (en este almacén específico)
             new_stock_quantity = float(stock_entry.quantity) + quantity_received
             stock_entry.quantity = new_stock_quantity
 
@@ -111,43 +135,138 @@ def receive_inventory(payload):
         return jsonify(error=str(e)), 500
 
 
-# --- ¡NUEVA API! ---
-# --- API 3: Reporte de Stock Actual ---
+# --- API 3: Reporte de Stock Consolidado (con filtros) ---
 @inventory_api.route('/stock-report', methods=['GET'], strict_slashes=False)
 @requires_auth(required_permission='view:inventory')
 def get_stock_report(payload):
-    """
-    Devuelve el stock actual de todos los productos en todos los almacenes.
-    """
     try:
-        # Esta consulta une Stock con Producto y Almacén
-        stock_data = db.session.query(
-            InventoryStock.quantity,
-            Product.name.label('product_name'),
-            Product.sku.label('product_sku'),
-            Warehouse.name.label('warehouse_name')
-        ).join(
-            Product, InventoryStock.product_id == Product.id
-        ).join(
-            Warehouse, InventoryStock.warehouse_id == Warehouse.id
-        ).filter(
-            InventoryStock.quantity > 0 # Opcional: mostrar solo items con stock
-        ).order_by(
-            Warehouse.name, Product.name
-        ).all()
+        warehouse_id = request.args.get('warehouse_id')
 
-        # Convertimos el resultado a un formato JSON amigable
-        report = [
-            {
-                "product_name": row.product_name,
+        query = db.session.query(
+            Product.sku.label('product_sku'),
+            Product.name.label('product_name'),
+            Category.name.label('category_name'),
+            Category.id.label('category_id'), # <-- ¡IMPORTANTE! Necesitamos el ID para filtrar hijos
+            Product.standard_price.label('unit_price'),
+            db.func.sum(InventoryStock.quantity).label('total_quantity')
+        ).join(
+            Category, Product.category_id == Category.id
+        ).join(
+            InventoryStock, Product.id == InventoryStock.product_id
+        )
+
+        if warehouse_id and warehouse_id != 'all':
+            query = query.filter(InventoryStock.warehouse_id == warehouse_id)
+
+        # Agrupar por producto
+        stock_data = query.group_by(Product.id).having(db.func.sum(InventoryStock.quantity) > 0).all()
+
+        report = []
+        for row in stock_data:
+            qty = float(row.total_quantity)
+            # Si el precio es nulo, usamos 0.0
+            price = float(row.unit_price or 0.0)
+
+            report.append({
                 "product_sku": row.product_sku,
-                "warehouse_name": row.warehouse_name,
-                "quantity": float(row.quantity)
-            } for row in stock_data
-        ]
+                "product_name": row.product_name,
+                "category_name": row.category_name,
+                "category_id": row.category_id, # <-- Enviamos el ID al frontend
+                "quantity": qty,
+                "unit_price": price,
+                "total_value": qty * price
+            })
 
         return jsonify(report)
 
     except Exception as e:
         print(f"--- ERROR AL OBTENER REPORTE DE STOCK: {str(e)} ---")
         return jsonify(error=str(e)), 500
+
+# --- API 4: Carga Masiva de Stock (Ajuste de Inventario) ---
+@inventory_api.route('/adjust-mass', methods=['POST'], strict_slashes=False)
+@requires_auth(required_permission='manage:inventory')
+def adjust_inventory_mass(payload):
+    if 'file' not in request.files or 'warehouse_id' not in request.form:
+        return jsonify(error="Faltan datos (archivo o almacén)"), 400
+
+    file = request.files['file']
+    warehouse_id = request.form['warehouse_id']
+    user_id = payload['sub']
+
+    try:
+        df = pd.read_excel(file)
+
+        # Columnas esperadas: SKU, Cantidad
+        if 'SKU' not in df.columns or 'Cantidad' not in df.columns:
+            return jsonify(error="El Excel debe tener las columnas: SKU, Cantidad"), 400
+
+        updated_count = 0
+        errors = []
+
+        for index, row in df.iterrows():
+            sku = str(row['SKU']).strip()
+            try:
+                real_quantity = float(row['Cantidad'])
+            except:
+                continue  # Saltar si la cantidad no es número
+
+            # 1. Buscar el producto
+            product = Product.query.filter_by(sku=sku).first()
+            if not product:
+                errors.append(f"SKU no encontrado: {sku}")
+                continue
+
+            # 2. Buscar (o crear) el registro de stock actual
+            stock_entry = InventoryStock.query.filter_by(
+                product_id=product.id,
+                warehouse_id=warehouse_id
+            ).first()
+
+            if not stock_entry:
+                stock_entry = InventoryStock(
+                    product_id=product.id,
+                    warehouse_id=warehouse_id,
+                    quantity=0.0
+                )
+                db.session.add(stock_entry)
+
+            current_qty = float(stock_entry.quantity)
+
+            # 3. Calcular la diferencia
+            # Si Excel dice 100 y Sistema dice 0, diferencia es +100.
+            # Si Excel dice 80 y Sistema dice 100, diferencia es -20.
+            difference = real_quantity - current_qty
+
+            if difference != 0:
+                # 4. Actualizar Stock
+                stock_entry.quantity = real_quantity
+
+                # 5. Crear Transacción (Kardex)
+                transaction = InventoryTransaction(
+                    product_id=product.id,
+                    warehouse_id=warehouse_id,
+                    quantity_change=difference,
+                    new_quantity=real_quantity,
+                    type="Carga Inicial / Ajuste",
+                    user_id=user_id
+                )
+                db.session.add(transaction)
+                updated_count += 1
+
+        db.session.commit()
+
+        return jsonify({
+            "message": "Proceso completado",
+            "updated_products": updated_count,
+            "errors": errors
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"--- ERROR CARGA MASIVA: {e} ---")
+        return jsonify(error=str(e)), 500
+
+
+
+
