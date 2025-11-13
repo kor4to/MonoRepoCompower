@@ -2,7 +2,7 @@
 <DespatchAdvice xmlns="urn:oasis:names:specification:ubl:schema:xsd:DespatchAdvice-2" xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2" xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:ext="urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2" xmlns:sac="urn:sunat:names:specification:ubl:peru:schema:xsd:SunatAggregateComponents-1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:qdt="urn:oasis:names:specification:ubl:schema:xsd:QualifiedDatatypes-2" xmlns:udt="urn:un:unece:uncefact:data:specification:UnqualifiedDataTypesSchemaModule:2" xmlns:ccts="urn:un:unece:uncefact:documentation:2">
   <ext:UBLExtensions>
     <ext:UBLExtension>
-      <ext:ExtensionContent><ds:Signature Id="Sign"><ds:SignedInfo><ds:CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/><ds:SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"/><ds:Reference URI=""><ds:Transforms><ds:Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/><ds:Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/></ds:Transforms><ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/><ds:DigestValue>lnEi4be9bN700JGNqilfbLozqHZRjm4lE/vZ5C2w51w=</ds:DigestValue></ds:Reference></ds:SignedInfo><ds:SignatureValue>G9QmzqNhb2aur9DwqzEI8Hq3WZ+q8xZkAJLuk/UHjE9evvuVs9aTa9nsb5zt7yJlIffU11e24rJKGF5U3yeBnvCdPslLoLdm+PG5FiyH8PBK388gRQVmSMG00ZirwWK+3gTLet8IObI1cHCttSQFxwHyN7aZLgEDQdCVZu7t+viw6Akj9TPa/o1w0K2ovL7IizAxmVwKJXeRmPRHoTAVDQ0lokV9JGi09oCYINQ8UcYVMgc0ZMdZw+RuYd/Ov62hOmSYDvBQPIstXccdxj/Zy/SZq43YLq9gYL+79HnsJxnzWTUu8ApxZ39CDb29tT7B4HOesiVQ4IOrxG+c8tHvZg==</ds:SignatureValue><ds:KeyInfo><ds:X509Data><ds:X509Certificate>MIIHfjCCBmagAwIBAgICBI8wDQYJKoZIhvcNAQELBQAwgZ8xCzAJBgNVBAYTAlBF
+      <ext:ExtensionContent><ds:Signature Id="Sign"><ds:SignedInfo><ds:CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/><ds:SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"/><ds:Reference URI=""><ds:Transforms><ds:Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/><ds:Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/></ds:Transforms><ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/><ds:DigestValue>jUFUxh0sQUV3uJwXGd/7S4ALXn/266B41FjkcVeVP1k=</ds:DigestValue></ds:Reference></ds:SignedInfo><ds:SignatureValue>Ls7y5yu1ffhmVeXaAPgjz0p3pTGH2Gz0miw4jlOksClgrYpdhRjWBiegOlCwSjBY08BbK4zT8KWL5rqCZEChK3H8UgEe/xRGJ9a3psKGTjS4+ie5b/S9GuHEybVxhMf2hL9zuD6vw5nLaTw6jWxeyXiv2DFZrEuTvvV/83z/jhPoc3ig+V4F9zscLa6cRjE4Y2wbVegR0wXG7//odNZpCSeIt63GHUjSFfzF/H/V/7EeZeqEhhsuVVcJZEtaWzrKeihNzFAS09+N+wDkUZXjuWCeuPn0nM1mFNljF33/SuCiKeJPq1gqaXOUetLKsyqp0qRczdbVGdYCWlEEgJF0tA==</ds:SignatureValue><ds:KeyInfo><ds:X509Data><ds:X509Certificate>MIIHfjCCBmagAwIBAgICBI8wDQYJKoZIhvcNAQELBQAwgZ8xCzAJBgNVBAYTAlBF
 MRswGQYDVQQKExJBQ0VQVEEgUEVSVSBTLkEuQy4xPTA7BgNVBAMTNEFjZXB0YSBQ
 ZXJ1IEF1dG9yaWRhZCBDZXJ0aWZpY2Fkb3JhIEVsZWN0cm9uaWNhIC0gVjExHjAc
 BgkqhkiG9w0BCQEWD2luZm9AYWNlcHRhLmNvbTEUMBIGA1UEBRMLMjA1NjI5OTk3
@@ -49,10 +49,9 @@ lR0=
   <cbc:UBLVersionID>2.1</cbc:UBLVersionID>
   <cbc:CustomizationID>2.0</cbc:CustomizationID>
   <cbc:ID>T002-18</cbc:ID>
-  <cbc:IssueDate>2025-11-12</cbc:IssueDate>
-  <cbc:IssueTime>15:05:25</cbc:IssueTime>
+  <cbc:IssueDate>2025-11-13</cbc:IssueDate>
+  <cbc:IssueTime>15:35:15</cbc:IssueTime>
   <cbc:DespatchAdviceTypeCode>09</cbc:DespatchAdviceTypeCode>
-  <cbc:Note>Otros</cbc:Note>
   <cac:Signature>
     <cbc:ID>20522348831</cbc:ID>
     <cac:SignatoryParty>
@@ -83,22 +82,22 @@ lR0=
   <cac:DeliveryCustomerParty>
     <cac:Party>
       <cac:PartyIdentification>
-        <cbc:ID schemeID="6" schemeName="Documento de Identidad" schemeAgencyName="PE:SUNAT" schemeURI="urn:pe:gob:sunat:cpe:see:gem:catalogos:catalogo06"/>
+        <cbc:ID schemeID="6" schemeName="Documento de Identidad" schemeAgencyName="PE:SUNAT" schemeURI="urn:pe:gob:sunat:cpe:see:gem:catalogos:catalogo06">20106897914</cbc:ID>
       </cac:PartyIdentification>
       <cac:PartyLegalEntity>
-        <cbc:RegistrationName/>
+        <cbc:RegistrationName>ENTEL PERU S.A.</cbc:RegistrationName>
       </cac:PartyLegalEntity>
     </cac:Party>
   </cac:DeliveryCustomerParty>
   <cac:Shipment>
     <cbc:ID>SUNAT_Envio</cbc:ID>
     <cbc:HandlingCode listAgencyName="PE:SUNAT" listName="Motivo de traslado" listURI="urn:pe:gob:sunat:cpe:see:gem:catalogos:catalogo20">13</cbc:HandlingCode>
-    <cbc:HandlingInstructions>Otros</cbc:HandlingInstructions>
+    <cbc:HandlingInstructions>OTROS</cbc:HandlingInstructions>
     <cbc:GrossWeightMeasure unitCode="KGM">1</cbc:GrossWeightMeasure>
     <cac:ShipmentStage>
       <cbc:TransportModeCode listName="Modalidad de traslado" listAgencyName="PE:SUNAT" listURI="urn:pe:gob:sunat:cpe:see:gem:catalogos:catalogo18">02</cbc:TransportModeCode>
       <cac:TransitPeriod>
-        <cbc:StartDate>2025-11-12</cbc:StartDate>
+        <cbc:StartDate>2025-11-13</cbc:StartDate>
       </cac:TransitPeriod>
       <cac:TransportMeans>
         <cac:RoadTransport>
@@ -119,7 +118,7 @@ lR0=
       <cac:DeliveryAddress>
         <cbc:ID schemeAgencyName="PE:INEI" schemeName="Ubigeos">150108</cbc:ID>
         <cac:AddressLine>
-          <cbc:Line/>
+          <cbc:Line>SITE CHORRLLOS</cbc:Line>
         </cac:AddressLine>
       </cac:DeliveryAddress>
       <cac:Despatch>

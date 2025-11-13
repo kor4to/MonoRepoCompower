@@ -8,10 +8,9 @@
   <cbc:UBLVersionID>2.1</cbc:UBLVersionID>
   <cbc:CustomizationID>2.0</cbc:CustomizationID>
   <cbc:ID>T002-18</cbc:ID>
-  <cbc:IssueDate>2025-11-12</cbc:IssueDate>
-  <cbc:IssueTime>15:05:25</cbc:IssueTime>
+  <cbc:IssueDate>2025-11-13</cbc:IssueDate>
+  <cbc:IssueTime>15:35:15</cbc:IssueTime>
   <cbc:DespatchAdviceTypeCode>09</cbc:DespatchAdviceTypeCode>
-  <cbc:Note>Otros</cbc:Note>
   <cac:Signature>
     <cbc:ID>20522348831</cbc:ID>
     <cac:SignatoryParty>
@@ -42,22 +41,22 @@
   <cac:DeliveryCustomerParty>
     <cac:Party>
       <cac:PartyIdentification>
-        <cbc:ID schemeID="6" schemeName="Documento de Identidad" schemeAgencyName="PE:SUNAT" schemeURI="urn:pe:gob:sunat:cpe:see:gem:catalogos:catalogo06"></cbc:ID>
+        <cbc:ID schemeID="6" schemeName="Documento de Identidad" schemeAgencyName="PE:SUNAT" schemeURI="urn:pe:gob:sunat:cpe:see:gem:catalogos:catalogo06">20106897914</cbc:ID>
       </cac:PartyIdentification>
       <cac:PartyLegalEntity>
-        <cbc:RegistrationName></cbc:RegistrationName>
+        <cbc:RegistrationName>ENTEL PERU S.A.</cbc:RegistrationName>
       </cac:PartyLegalEntity>
     </cac:Party>
   </cac:DeliveryCustomerParty>
   <cac:Shipment>
     <cbc:ID>SUNAT_Envio</cbc:ID>
     <cbc:HandlingCode listAgencyName="PE:SUNAT" listName="Motivo de traslado" listURI="urn:pe:gob:sunat:cpe:see:gem:catalogos:catalogo20">13</cbc:HandlingCode>
-    <cbc:HandlingInstructions>Otros</cbc:HandlingInstructions>
+    <cbc:HandlingInstructions>OTROS</cbc:HandlingInstructions>
     <cbc:GrossWeightMeasure unitCode="KGM">1</cbc:GrossWeightMeasure>
     <cac:ShipmentStage>
       <cbc:TransportModeCode listName="Modalidad de traslado" listAgencyName="PE:SUNAT" listURI="urn:pe:gob:sunat:cpe:see:gem:catalogos:catalogo18">02</cbc:TransportModeCode>
       <cac:TransitPeriod>
-        <cbc:StartDate>2025-11-12</cbc:StartDate>
+        <cbc:StartDate>2025-11-13</cbc:StartDate>
       </cac:TransitPeriod>
       <cac:TransportMeans>
         <cac:RoadTransport>
@@ -78,7 +77,7 @@
       <cac:DeliveryAddress>
         <cbc:ID schemeAgencyName="PE:INEI" schemeName="Ubigeos">150108</cbc:ID>
         <cac:AddressLine>
-          <cbc:Line></cbc:Line>
+          <cbc:Line>SITE CHORRLLOS</cbc:Line>
         </cac:AddressLine>
       </cac:DeliveryAddress>
       <cac:Despatch>

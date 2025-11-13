@@ -57,7 +57,7 @@ const greData = ref({
 
   // Req #4: Motivo
   motivo_de_traslado: '01', // 01 = Venta (default)
-  motivo_otros_descripcion: '', // Para "Otros"
+  motivo: '', // Para "Otros"
 
   // Req #3: Transporte
   tipo_de_transporte: '02', // 02 = Privado (default)
@@ -70,9 +70,9 @@ const greData = ref({
   conductor_apellidos: '',
 
   // Direcciones (Se llenan automáticamente)
-  punto_de_partida_ubigeo: '',
-  punto_de_partida_direccion: '',
-  punto_de_llegada_ubigeo: '',
+  punto_de_partida_ubigeo: '150140',
+  punto_de_partida_direccion: 'CAL.SAN BORJA MZ. 2492 LT. 1 INT. 104',
+  punto_de_llegada_ubigeo: '150108',
   punto_de_llegada_direccion: '',
 })
 
@@ -113,51 +113,7 @@ onMounted(async () => {
   }
 })
 
-// --- Watchers para Origen y Destino ---
-watch(() => transferData.value.origin_warehouse_id, (whId) => {
-  const wh = warehouses.value.find(w => w.id === whId)
-  if (wh) {
-    greData.value.punto_de_partida_ubigeo = wh.ubigeo
-    greData.value.punto_de_partida_direccion = wh.location
-  }
-})
 
-// --- ¡NUEVO! Limpiar campos al cambiar de tipo de transferencia ---
-watch(transferType, (newVal) => {
-  // Limpiar mensajes
-  error.value = null
-  successMessage.value = null
-
-  if (newVal === 'sin_gre') {
-    // Modo "Sin GRE": Limpiar dirección externa
-    transferData.value.destination_external_address = ''
-    greData.value.punto_de_llegada_direccion = ''
-    greData.value.punto_de_llegada_ubigeo = ''
-  } else {
-    // Modo "Con GRE": Limpiar almacén destino interno
-    transferData.value.destination_warehouse_id = null
-  }
-})
-
-watch(() => transferData.value.destination_warehouse_id, (newVal) => {
-  // Solo se activa si estamos en modo "Sin GRE"
-  if (transferType.value === 'sin_gre' && newVal) {
-      transferData.value.destination_external_address = '' // (redundant, but safe)
-      const wh = warehouses.value.find(w => w.id === newVal)
-      if (wh) {
-        greData.value.punto_de_llegada_ubigeo = wh.ubigeo
-        greData.value.punto_de_llegada_direccion = wh.location
-      }
-  }
-})
-watch(() => transferData.value.destination_external_address, (newVal) => {
-  // Solo se activa si estamos en modo "Con GRE"
-  if (transferType.value === 'con_gre' && newVal) {
-      transferData.value.destination_warehouse_id = null
-      greData.value.punto_de_llegada_direccion = newVal
-      greData.value.punto_de_llegada_ubigeo = "" // Requiere ingreso manual
-  }
-})
 
 // --- Lógica de Items (MODIFICADA) ---
 function addProduct(product) {
@@ -470,7 +426,7 @@ async function handleFormSubmit() {
             </div>
             <div v-if="greData.motivo_de_traslado === '13'" class="space-y-2">
               <Label for="gre-motivo-otros">Descripción (Otros)</Label>
-              <Input id="gre-motivo-otros" v-model="greData.motivo_otros_descripcion" placeholder="Escribe el motivo aquí..." />
+              <Input id="gre-motivo-otros" v-model="greData.motivo" placeholder="Escribe el motivo aquí..." />
             </div>
             <div v-else class="space-y-2">
               <Label for="gre-obs">Observaciones (Opcional)</Label>
