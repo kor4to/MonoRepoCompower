@@ -2,9 +2,6 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 // --- ¡RUTAS DE IMPORTACIÓN ACTUALIZADAS! ---
 import HomeView from '@/views/HomeView.vue'
-import Modulo1 from '@/views/modules/Modulo1.vue'
-import Modulo2 from '@/views/modules/Modulo2.vue'
-import Modulo3 from '@/views/modules/Modulo3.vue'
 
 import AdminPanel from '@/views/admin/AdminPanel.vue'
 
@@ -30,25 +27,6 @@ const routes = [
     name: 'Home',
     component: HomeView,
     meta: { title: 'Novedades' }
-  },
-  // Módulos
-  {
-    path: '/modulo1',
-    name: 'Modulo1',
-    component: Modulo1,
-    meta: { title: 'Módulo 1' }
-  },
-  {
-    path: '/modulo2',
-    name: 'Modulo2',
-    component: Modulo2,
-    meta: { title: 'Módulo 2' }
-  },
-  {
-    path: '/modulo3',
-    name: 'Modulo3',
-    component: Modulo3,
-    meta: { title: 'Módulo 3' }
   },
   // Admin
   {
@@ -101,7 +79,7 @@ const routes = [
     path: '/inventory',
     name: 'Inventory',
     component: InventoryView,
-    meta: { title: 'Recepción de Inventario' }
+    meta: { title: 'Recepcion' }
   },
   {
     path: '/inventory/receive/:id',
@@ -113,13 +91,13 @@ const routes = [
     path: '/inventory/stock-report',
     name: 'StockReport',
     component: StockReportView,
-    meta: { title: 'Reporte de Stock' }
+    meta: { title: 'Reportes y Maestro' }
   },
   {
     path: '/inventory/transfers',
     name: 'StockTransfers',
     component: StockTransferView,
-    meta: { title: 'Movimientos de Stock' }
+    meta: { title: 'Transferencias' }
   },
   {
     path: '/inventory/transfers/create',
@@ -131,7 +109,7 @@ const routes = [
   path: '/inventory/adjust',
   name: 'InventoryAdjustment',
   component: InventoryAdjustmentView,
-  meta: { title: 'Ajuste de Inventario' }
+  meta: { title: 'Ajuste y Carga' }
 },
 ]
 

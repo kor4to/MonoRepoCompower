@@ -58,38 +58,6 @@ const currentPageTitle = computed(() => route.meta.title || 'Dashboard')
 // 2. Definir TODOS los módulos posibles de la app
 const navModules = [
   {
-    title: 'Módulo 1',
-    icon: LayoutDashboard,
-    permission: 'view:modulo_1',
-    links: [
-      { name: 'Página Principal', path: '/modulo1' }, // <-- CAMBIO
-    ]
-  },
-  {
-    title: 'Módulo 2',
-    icon: BarChart2,
-    permission: 'view:modulo_2',
-    links: [
-      { name: 'Página Principal', path: '/modulo2' }, // <-- CAMBIO
-    ]
-  },
-  {
-    title: 'Módulo 3',
-    icon: FileText,
-    permission: 'view:modulo_3',
-    links: [
-      { name: 'Página Principal', path: '/modulo3' }, // <-- CAMBIO
-    ]
-  },
-  {
-    title: 'Módulo 4',
-    icon: FileText,
-    permission: 'view:modulo_3',
-    links: [
-      { name: 'Página Principal', path: '/emitir_gre' }, // <-- CAMBIO
-    ]
-  },
-  {
     title: 'Centros de Costos', // <-- Renombrado
     icon: Briefcase,
     permission: 'view:cost_centers', // <-- Permiso actualizado
@@ -184,7 +152,7 @@ watch(
                 <AccordionTrigger class="hover:no-underline">
                   <div class="flex items-center">
                     <Archive class="h-4 w-4 mr-2" />
-                    <span>Inventario</span>
+                    <span>Modulo de Inventario</span>
                   </div>
                 </AccordionTrigger>
                 <AccordionContent class="pl-4">
@@ -192,35 +160,35 @@ watch(
                     <li v-if="userPermissions.includes('manage:inventory')">
                       <RouterLink to="/inventory" v-slot="{ href, navigate, isActive }">
                         <Button :variant="isActive ? 'secondary' : 'ghost'" class="w-full justify-start h-8" @click="navigate">
-                          Recepcionar Compras
+                          Recepcion
                         </Button>
                       </RouterLink>
                     </li>
                     <li v-if="userPermissions.includes('manage:transfers')">
                       <RouterLink to="/inventory/transfers" v-slot="{ href, navigate, isActive }">
                         <Button :variant="isActive ? 'secondary' : 'ghost'" class="w-full justify-start h-8" @click="navigate">
-                          Movimientos de Stock
+                          Transferencias
                         </Button>
                       </RouterLink>
                     </li>
                     <li v-if="userPermissions.includes('view:inventory')">
                       <RouterLink to="/inventory/stock-report" v-slot="{ href, navigate, isActive }">
                         <Button :variant="isActive ? 'secondary' : 'ghost'" class="w-full justify-start h-8" @click="navigate">
-                          Reporte de Stock
+                          Reportes y Maestro
                         </Button>
                       </RouterLink>
                     </li>
-                    <li v-if="userPermissions.includes('manage:inventory')">
+                    <!-- <li v-if="userPermissions.includes('manage:inventory')">
                       <RouterLink to="/inventory/warehouses" v-slot="{ href, navigate, isActive }">
                         <Button :variant="isActive ? 'secondary' : 'ghost'" class="w-full justify-start h-8" @click="navigate">
                           Gestionar Almacenes
                         </Button>
                       </RouterLink>
-                    </li>
+                    </li> -->
                     <li v-if="userPermissions.includes('manage:inventory')">
                       <RouterLink to="/inventory/adjust" v-slot="{ href, navigate, isActive }">
                         <Button :variant="isActive ? 'secondary' : 'ghost'" class="w-full justify-start h-8" @click="navigate">
-                          Carga Masiva / Ajustes
+                          Ajuste y Carga
                         </Button>
                       </RouterLink>
                     </li>
@@ -228,7 +196,7 @@ watch(
                 </AccordionContent>
               </AccordionItem>
 
-              <AccordionItem v-if="userPermissions.includes('view:catalog')" value="catalog">
+              <!-- <AccordionItem v-if="userPermissions.includes('view:catalog')" value="catalog">
                 <AccordionTrigger class="hover:no-underline">
                   <div class="flex items-center">
                     <FolderTree class="h-4 w-4 mr-2" />
@@ -253,7 +221,7 @@ watch(
                     </li>
                   </ul>
                 </AccordionContent>
-              </AccordionItem>
+              </AccordionItem> -->
             <AccordionItem v-if="isAdmin" value="admin-panel">
               <AccordionTrigger class="hover:no-underline">
                 <div class="flex items-center">
