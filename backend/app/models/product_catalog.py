@@ -34,6 +34,7 @@ class Product(db.Model):
 
     # --- ¡NUEVO CAMPO! Precio Estándar / Referencial ---
     standard_price = db.Column(db.Numeric(10, 2), nullable=False, default=0.00)
+    location = db.Column(db.String(100), nullable=True) # Ubicación física/estante
 
     category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=False)
 
@@ -43,7 +44,8 @@ class Product(db.Model):
             'sku': self.sku,
             'name': self.name,
             'unit_of_measure': self.unit_of_measure,
-            'standard_price': float(self.standard_price),  # <-- Incluimos el precio
+            'standard_price': float(self.standard_price),
+            'location': self.location, # <-- Incluimos la ubicación
             'category_name': self.category.name if self.category else 'N/A',
             'category_id': self.category_id
         }

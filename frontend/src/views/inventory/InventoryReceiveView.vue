@@ -7,10 +7,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button/index.js'
 import { Input } from '@/components/ui/input/index.js'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select/index.js'
-// <-- ¡CORREGIDO! Añadimos 'Plus' para el botón de crear
 import { Loader2, Check, ChevronsUpDown, Plus } from 'lucide-vue-next'
 
-// Combobox (copiado de PurchasesView)
+// Combobox
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command/index.js'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover/index.js'
 import ProductFormModal from '@/components/ProductFormModal.vue'
@@ -24,7 +23,7 @@ const { getAccessTokenSilently } = useAuth0()
 const order = ref(null)
 const warehouses = ref([])
 const productCatalog = ref([])
-const categories = ref([]) // <-- ¡AÑADIDO! Faltaba este ref
+const categories = ref([])
 const isLoading = ref(true)
 const error = ref(null)
 const isSubmitting = ref(false)
@@ -33,11 +32,9 @@ const isSubmitting = ref(false)
 const selectedWarehouse = ref(null)
 const receptionItems = ref([])
 
-// --- ¡CORREGIDO! Esta es la forma correcta en Vue de declarar el ref ---
 const isProductModalOpen = ref(false)
-const currentReceivingItem = ref(null) // <-- No se usa [ ]
+const currentReceivingItem = ref(null)
 
-// --- ¡AÑADIDA! Faltaba esta función que estabas llamando ---
 async function fetchProductCatalog() {
   try {
     const token = await getAccessTokenSilently()
@@ -56,35 +53,32 @@ onMounted(async () => {
   try {
     const token = await getAccessTokenSilently()
 
-    // 1. Cargar la Orden
     const orderRes = await fetch(`https://192.168.1.59:5000/api/purchases/${orderId}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
     if (!orderRes.ok) throw new Error('No se pudo cargar la orden.')
     order.value = await orderRes.json()
 
-    // 2. Cargar los Almacenes
     const whRes = await fetch(`https://192.168.1.59:5000/api/inventory/warehouses`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
     warehouses.value = await whRes.json()
 
-    // 3. Cargar el Catálogo de Productos (llamando a la función)
-    await fetchProductCatalog() // <-- ¡CORREGIDO!
+    await fetchProductCatalog()
 
-    // 4. Cargar Categorías (para el modal)
     const catRes = await fetch(`https://192.168.1.59:5000/api/categories`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
     categories.value = await catRes.json()
 
-    // 5. Pre-llenar el formulario de recepción
+    // --- CAMBIO: Añadir 'location' al inicializar los items ---
     receptionItems.value = order.value.items.map(item => ({
       po_item_id: item.id,
       invoice_detail_text: item.invoice_detail_text,
       quantity_ordered: item.quantity,
       product_id: null,
       quantity_received: item.quantity,
+      location: '', // <-- Campo añadido
     }))
 
   } catch (e) {
@@ -94,36 +88,32 @@ onMounted(async () => {
   }
 })
 
-// Helper para el Combobox
 function handleProductSelect(item, selectedProductId) {
   item.product_id = selectedProductId
+  // --- CAMBIO: Pre-rellenar ubicación si el producto ya la tiene ---
+  const product = productCatalog.value.find(p => p.id === selectedProductId)
+  if (product && product.location) {
+    item.location = product.location
+  }
 }
 
-// --- ¡CORREGIDO! Funciones para el Modal de Producto ---
 function openProductModal(item) {
-  currentReceivingItem.value = item // <-- Se asigna con .value
+  currentReceivingItem.value = item
   isProductModalOpen.value = true
 }
 
 async function onProductCreated(newProduct) {
-  // 1. Recargar el catálogo
   await fetchProductCatalog()
-
-  // 2. Asignar automáticamente el producto recién creado
   if (currentReceivingItem.value) {
     currentReceivingItem.value.product_id = newProduct.id
   }
-
-  // 3. Limpiar (movido aquí)
   currentReceivingItem.value = null
 }
 
-// ¡Función Principal de Guardado! (sin cambios, ya estaba bien)
 async function handleSubmitReception() {
   isSubmitting.value = true
   error.value = null
 
-  // Validación
   if (!selectedWarehouse.value) {
     error.value = "Debes seleccionar un almacén de destino."
     isSubmitting.value = false
@@ -139,6 +129,7 @@ async function handleSubmitReception() {
 
   try {
     const token = await getAccessTokenSilently()
+    // --- CAMBIO: Incluir 'location' en el payload ---
     const payload = {
       warehouse_id: selectedWarehouse.value,
       order_id: order.value.id,
@@ -146,6 +137,7 @@ async function handleSubmitReception() {
         po_item_id: item.po_item_id,
         product_id: item.product_id,
         quantity_received: item.quantity_received,
+        location: item.location, // <-- Campo añadido
       }))
     }
 
@@ -160,7 +152,6 @@ async function handleSubmitReception() {
       throw new Error(errData.error || 'Error al guardar la recepción.')
     }
 
-    // ¡Éxito! Redirigir de vuelta a la lista
     router.push('/inventory')
 
   } catch (e) {
@@ -220,10 +211,12 @@ async function handleSubmitReception() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead class="w-[30%]">Detalle (Factura)</TableHead>
-                <TableHead class="w-[30%]">Producto (Catálogo)</TableHead>
+                <TableHead class="w-[25%]">Detalle (Factura)</TableHead>
+                <TableHead class="w-[25%]">Producto (Catálogo)</TableHead>
                 <TableHead>Cant. Pedida</TableHead>
                 <TableHead>Cant. a Recibir</TableHead>
+                <!-- CAMBIO: Nueva columna para Ubicación -->
+                <TableHead>Ubicación</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -269,6 +262,10 @@ async function handleSubmitReception() {
                 <TableCell>{{ item.quantity_ordered }}</TableCell>
                 <TableCell>
                   <Input v-model="item.quantity_received" type="number" class="w-24" />
+                </TableCell>
+                <!-- CAMBIO: Nuevo campo de texto para la ubicación -->
+                <TableCell>
+                  <Input v-model="item.location" type="text" class="w-24" placeholder="Ej: A1-B2" />
                 </TableCell>
               </TableRow>
             </TableBody>

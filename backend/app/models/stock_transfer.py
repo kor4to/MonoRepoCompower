@@ -27,7 +27,7 @@ class StockTransfer(db.Model):
     # --- FIN DE CAMBIOS ---
 
     # Relación con los items
-    items = db.relationship('StockTransferItem', backref='transfer', lazy='dynamic', cascade="all, delete-orphan")
+    items = db.relationship('StockTransferItem', backref='transfer', cascade="all, delete-orphan")
 
     def to_dict(self):
         return {
@@ -37,7 +37,7 @@ class StockTransfer(db.Model):
             'destination_warehouse': self.destination_warehouse.name if self.destination_warehouse else 'N/A',
             'destination_external': self.destination_external_address,
             'status': self.status,
-            'items': [item.to_dict() for item in self.items.all()],
+            'items': [item.to_dict() for item in self.items],
             # --- INICIO DE CAMBIOS: Añadir campos GRE al diccionario ---
             'gre_series': self.gre_series,
             'gre_number': self.gre_number,

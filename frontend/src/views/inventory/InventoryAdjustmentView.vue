@@ -114,7 +114,7 @@ async function handleFileUpload(event) {
               </Select>
             </div>
             <div class="space-y-2">
-              <Label>2. Sube el Excel (Columnas: SKU, Cantidad)</Label>
+              <Label>2. Sube el Excel (Columnas: SKU, Cantidad, Locacion)</Label>
               <div class="border-2 border-dashed rounded-lg p-10 flex flex-col items-center justify-center text-center hover:bg-gray-50 transition cursor-pointer" @click="fileInput.click()">
                 <FileSpreadsheet class="h-10 w-10 text-green-600 mb-2" />
                 <p class="text-sm text-gray-600" v-if="!isSubmitting">

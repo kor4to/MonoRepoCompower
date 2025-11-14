@@ -14,10 +14,10 @@ const warehouses = ref([])
 const isLoading = ref(true)
 const error = ref(null)
 
-// Refs para el modal
+// --- CAMBIO: Añadir address y ubigeo al formData inicial ---
 const isDialogOpen = ref(false)
 const modalMode = ref('create') // 'create' o 'edit'
-const formData = ref({ id: null, name: '', location: '' })
+const formData = ref({ id: null, name: '', location: '', address: '', ubigeo: '' })
 
 // --- Cargar Datos ---
 async function fetchWarehouses() {
@@ -41,13 +41,14 @@ onMounted(fetchWarehouses)
 // --- Abrir Modales ---
 function openCreateModal() {
   modalMode.value = 'create'
-  formData.value = { id: null, name: '', location: '' }
+  // --- CAMBIO: Resetear el formulario con los nuevos campos ---
+  formData.value = { id: null, name: '', location: '', address: '', ubigeo: '' }
   isDialogOpen.value = true
 }
 
 function openEditModal(warehouse) {
   modalMode.value = 'edit'
-  formData.value = { ...warehouse } // Copia los datos del almacén
+  formData.value = { ...warehouse } // Copia todos los datos, incluyendo los nuevos
   isDialogOpen.value = true
 }
 
@@ -96,7 +97,10 @@ async function handleFormSubmit() {
         <TableHeader>
           <TableRow>
             <TableHead>Nombre</TableHead>
-            <TableHead>Ubicación</TableHead>
+            <TableHead>Ubicación (Distrito)</TableHead>
+            <!-- CAMBIO: Nuevas columnas -->
+            <TableHead>Dirección</TableHead>
+            <TableHead>Ubigeo</TableHead>
             <TableHead>Acciones</TableHead>
           </TableRow>
         </TableHeader>
@@ -104,11 +108,14 @@ async function handleFormSubmit() {
           <TableRow v-for="wh in warehouses" :key="wh.id">
             <TableCell class="font-medium">{{ wh.name }}</TableCell>
             <TableCell>{{ wh.location }}</TableCell>
+            <!-- CAMBIO: Nuevas celdas -->
+            <TableCell>{{ wh.address }}</TableCell>
+            <TableCell>{{ wh.ubigeo }}</TableCell>
             <TableCell>
               <Button variant="outline" size="icon" @click="openEditModal(wh)">
                 <Pencil class="h-4 w-4" />
               </Button>
-              </TableCell>
+            </TableCell>
           </TableRow>
         </TableBody>
       </Table>
@@ -125,8 +132,17 @@ async function handleFormSubmit() {
             <Input id="name" v-model="formData.name" class="col-span-3" />
           </div>
           <div class="grid grid-cols-4 items-center gap-4">
-            <Label for="location" class="text-right">Ubicación</Label>
+            <Label for="location" class="text-right">Ubicación (Distrito)</Label>
             <Input id="location" v-model="formData.location" class="col-span-3" />
+          </div>
+          <!-- CAMBIO: Nuevos campos en el formulario -->
+          <div class="grid grid-cols-4 items-center gap-4">
+            <Label for="address" class="text-right">Dirección</Label>
+            <Input id="address" v-model="formData.address" class="col-span-3" />
+          </div>
+          <div class="grid grid-cols-4 items-center gap-4">
+            <Label for="ubigeo" class="text-right">Ubigeo</Label>
+            <Input id="ubigeo" v-model="formData.ubigeo" class="col-span-3" />
           </div>
         </div>
         <DialogFooter>

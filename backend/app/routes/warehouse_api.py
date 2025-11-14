@@ -27,7 +27,9 @@ def create_warehouse(payload):
     try:
         new_wh = Warehouse(
             name=data['name'],
-            location=data.get('location', '')
+            location=data.get('location', ''),
+            address=data.get('address', ''),
+            ubigeo=data.get('ubigeo', '')
         )
         db.session.add(new_wh)
         db.session.commit()
@@ -47,6 +49,8 @@ def update_warehouse(wh_id, payload):
     try:
         wh.name = data.get('name', wh.name)
         wh.location = data.get('location', wh.location)
+        wh.address = data.get('address', wh.address)
+        wh.ubigeo = data.get('ubigeo', wh.ubigeo)
 
         db.session.commit()
         return jsonify(wh.to_dict())

@@ -32,8 +32,8 @@ def receive_inventory(payload):
         "warehouse_id": 1,
         "order_id": 5,
         "items": [
-            { "po_item_id": 10, "product_id": 2, "quantity_received": 50 },
-            { "po_item_id": 11, "product_id": 1, "quantity_received": 20 }
+            { "po_item_id": 10, "product_id": 2, "quantity_received": 50, "location": "A1-B2" },
+            { "po_item_id": 11, "product_id": 1, "quantity_received": 20, "location": "C3-D4" }
         ]
     }
     """
@@ -53,6 +53,8 @@ def receive_inventory(payload):
             po_item_id = item_data['po_item_id']
             product_id = item_data['product_id']
             quantity_received = float(item_data['quantity_received'])
+            # --- CAMBIO: Obtener la ubicación opcional ---
+            location = item_data.get('location')
 
             if quantity_received <= 0:
                 continue # Ignorar items que no se están recibiendo
@@ -71,7 +73,6 @@ def receive_inventory(payload):
             ).first()
 
             if not stock_entry:
-                # Si es la primera vez que este producto entra a este almacén
                 stock_entry = InventoryStock(
                     product_id=product_id,
                     warehouse_id=warehouse_id,
@@ -79,30 +80,29 @@ def receive_inventory(payload):
                 )
                 db.session.add(stock_entry)
 
-            # --- CÁLCULO DE COSTO PROMEDIO PONDERADO ---
-            # 1. Obtener datos actuales
+            # --- CÁLCULO DE COSTO PROMEDIO PONDERADO Y UBICACIÓN ---
             product = Product.query.get(product_id)
+
+            # --- CAMBIO: Actualizar la ubicación si se proporciona ---
+            if location:
+                product.location = location
+
             current_total_stock = db.session.query(db.func.sum(InventoryStock.quantity)).filter_by(
                 product_id=product_id).scalar() or 0.0
             current_total_stock = float(current_total_stock)
             current_avg_price = float(product.standard_price)
 
-            # Precio de esta compra específica (buscamos en el item de la orden)
             incoming_price = float(po_item.unit_price)
-
-            # 2. Fórmula: (Valor Actual + Valor Nuevo) / Cantidad Total Nueva
             current_total_value = current_total_stock * current_avg_price
             incoming_total_value = quantity_received * incoming_price
-
             new_total_quantity = current_total_stock + quantity_received
 
             if new_total_quantity > 0:
                 new_avg_price = (current_total_value + incoming_total_value) / new_total_quantity
-                # Actualizamos el precio maestro del producto
                 product.standard_price = new_avg_price
             # -------------------------------------------
 
-            # 4. Actualizar la cantidad de stock (en este almacén específico)
+            # 4. Actualizar la cantidad de stock
             new_stock_quantity = float(stock_entry.quantity) + quantity_received
             stock_entry.quantity = new_stock_quantity
 
@@ -110,8 +110,8 @@ def receive_inventory(payload):
             transaction = InventoryTransaction(
                 product_id=product_id,
                 warehouse_id=warehouse_id,
-                quantity_change=quantity_received, # ej. +50
-                new_quantity=new_stock_quantity, # El stock resultante
+                quantity_change=quantity_received,
+                new_quantity=new_stock_quantity,
                 type="Recepción de Compra",
                 user_id=user_id,
                 purchase_order_item_id=po_item_id
@@ -197,9 +197,10 @@ def adjust_inventory_mass(payload):
     try:
         df = pd.read_excel(file)
 
-        # Columnas esperadas: SKU, Cantidad
-        if 'SKU' not in df.columns or 'Cantidad' not in df.columns:
-            return jsonify(error="El Excel debe tener las columnas: SKU, Cantidad"), 400
+        # --- CAMBIO: Se añade 'Locacion' a las columnas esperadas ---
+        expected_columns = ['SKU', 'Cantidad', 'Locacion']
+        if not all(col in df.columns for col in expected_columns):
+            return jsonify(error="El Excel debe tener las columnas: SKU, Cantidad, Locacion"), 400
 
         updated_count = 0
         errors = []
@@ -208,14 +209,21 @@ def adjust_inventory_mass(payload):
             sku = str(row['SKU']).strip()
             try:
                 real_quantity = float(row['Cantidad'])
-            except:
-                continue  # Saltar si la cantidad no es número
+                # --- CAMBIO: Se extrae la ubicación ---
+                location = str(row['Locacion']).strip() if pd.notna(row['Locacion']) else None
+            except (ValueError, TypeError):
+                errors.append(f"SKU {sku}: Cantidad inválida.")
+                continue
 
             # 1. Buscar el producto
             product = Product.query.filter_by(sku=sku).first()
             if not product:
                 errors.append(f"SKU no encontrado: {sku}")
                 continue
+
+            # --- CAMBIO: Actualizar la ubicación del producto ---
+            if location:
+                product.location = location
 
             # 2. Buscar (o crear) el registro de stock actual
             stock_entry = InventoryStock.query.filter_by(
@@ -234,8 +242,6 @@ def adjust_inventory_mass(payload):
             current_qty = float(stock_entry.quantity)
 
             # 3. Calcular la diferencia
-            # Si Excel dice 100 y Sistema dice 0, diferencia es +100.
-            # Si Excel dice 80 y Sistema dice 100, diferencia es -20.
             difference = real_quantity - current_qty
 
             if difference != 0:
@@ -266,6 +272,46 @@ def adjust_inventory_mass(payload):
         db.session.rollback()
         print(f"--- ERROR CARGA MASIVA: {e} ---")
         return jsonify(error=str(e)), 500
+
+# --- API 5: Obtener Transacciones de Inventario (Kardex) ---
+@inventory_api.route('/transactions', methods=['GET'], strict_slashes=False)
+@requires_auth(required_permission='view:inventory')
+def get_kardex_transactions(payload):
+    """Devuelve una lista de todas las transacciones de inventario (Kardex) con filtros."""
+    try:
+        # Construir la consulta base
+        query = InventoryTransaction.query.options(
+            joinedload(InventoryTransaction.product),
+            joinedload(InventoryTransaction.warehouse)
+        ).order_by(InventoryTransaction.timestamp.desc())
+
+        # Aplicar filtros desde los query params
+        product_id = request.args.get('product_id')
+        warehouse_id = request.args.get('warehouse_id')
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+
+        if product_id:
+            query = query.filter(InventoryTransaction.product_id == product_id)
+        
+        if warehouse_id:
+            query = query.filter(InventoryTransaction.warehouse_id == warehouse_id)
+
+        if start_date:
+            query = query.filter(InventoryTransaction.timestamp >= start_date)
+
+        if end_date:
+            # Para que la fecha final sea inclusiva, se puede ajustar la lógica si es necesario
+            query = query.filter(InventoryTransaction.timestamp <= end_date)
+
+        transactions = query.all()
+
+        return jsonify([t.to_dict() for t in transactions])
+
+    except Exception as e:
+        print(f"--- ERROR OBTENIENDO KARDEX: {e} ---")
+        return jsonify(error=str(e)), 500
+
 
 
 

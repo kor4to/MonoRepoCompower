@@ -106,6 +106,12 @@ const routes = [
     meta: { title: 'Crear Transferencia' }
   },
   {
+    path: '/inventory/transfers/:id',
+    name: 'StockTransferDetail',
+    component: () => import('@/views/inventory/StockTransferDetailView.vue'),
+    meta: { title: 'Detalle de Transferencia' }
+  },
+  {
   path: '/inventory/adjust',
   name: 'InventoryAdjustment',
   component: InventoryAdjustmentView,

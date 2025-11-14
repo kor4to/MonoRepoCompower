@@ -135,3 +135,23 @@ def create_transfer(payload):
         db.session.rollback()
         print(f"--- ERROR AL CREAR TRANSFERENCIA: {str(e)} ---")
         return jsonify(error=str(e)), 500
+
+# --- RUTA 3: Obtener el detalle de UNA transferencia ---
+@transfer_api.route('/<int:transfer_id>', methods=['GET'])
+@requires_auth(required_permission='view:transfers')
+def get_transfer_detail(transfer_id, payload):
+    """Devuelve el detalle de una transferencia específica."""
+    try:
+        transfer = StockTransfer.query.options(
+            joinedload(StockTransfer.origin_warehouse),
+            joinedload(StockTransfer.destination_warehouse),
+            joinedload(StockTransfer.items).joinedload(StockTransferItem.product)
+        ).get(transfer_id)
+
+        if not transfer:
+            return jsonify(error="Transferencia no encontrada"), 404
+
+        return jsonify(transfer.to_dict())
+    except Exception as e:
+        print(f"--- ERROR OBTENIENDO DETALLE DE TRANSFERENCIA: {e} ---")
+        return jsonify(error=str(e)), 500

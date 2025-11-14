@@ -32,7 +32,18 @@ class InventoryTransaction(db.Model):
     reference = db.Column(db.String(100), nullable=True) # ej. "GRE: T001-1", "Ajuste: #123"
 
     # Vínculo a la línea de la orden de compra
-    purchase_order_item_id = db.Column(db.Integer, db.ForeignKey('purchase_order_items.id'), nullable=True)
-
     product = db.relationship('Product')
     warehouse = db.relationship('Warehouse')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'timestamp': self.timestamp.isoformat(),
+            'product_name': self.product.name if self.product else 'N/A',
+            'product_sku': self.product.sku if self.product else 'N/A',
+            'warehouse_name': self.warehouse.name if self.warehouse else 'N/A',
+            'type': self.type,
+            'reference': self.reference,
+            'quantity_change': float(self.quantity_change),
+            'new_quantity': float(self.new_quantity)
+        }
