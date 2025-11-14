@@ -20,6 +20,12 @@ class StockTransfer(db.Model):
     status = db.Column(db.String(50), nullable=False, default='Completada') # Ahora es instantáneo
     user_id = db.Column(db.String(255), nullable=False) # Auth0 sub
 
+    # --- INICIO DE CAMBIOS: Campos para la GRE ---
+    gre_series = db.Column(db.String(10), nullable=True)
+    gre_number = db.Column(db.String(20), nullable=True)
+    gre_ticket = db.Column(db.String(50), nullable=True)
+    # --- FIN DE CAMBIOS ---
+
     # Relación con los items
     items = db.relationship('StockTransferItem', backref='transfer', lazy='dynamic', cascade="all, delete-orphan")
 
@@ -31,7 +37,12 @@ class StockTransfer(db.Model):
             'destination_warehouse': self.destination_warehouse.name if self.destination_warehouse else 'N/A',
             'destination_external': self.destination_external_address,
             'status': self.status,
-            'items': [item.to_dict() for item in self.items.all()]
+            'items': [item.to_dict() for item in self.items.all()],
+            # --- INICIO DE CAMBIOS: Añadir campos GRE al diccionario ---
+            'gre_series': self.gre_series,
+            'gre_number': self.gre_number,
+            'gre_ticket': self.gre_ticket
+            # --- FIN DE CAMBIOS ---
         }
 
 # Modelo 2: Los detalles (items) de la transferencia

@@ -29,6 +29,7 @@ class InventoryTransaction(db.Model):
     type = db.Column(db.String(50), nullable=False) # "Recepción de Compra", "Ajuste"
     timestamp = db.Column(db.DateTime, default=datetime.now)
     user_id = db.Column(db.String(255), nullable=False) # Auth0 sub
+    reference = db.Column(db.String(100), nullable=True) # ej. "GRE: T001-1", "Ajuste: #123"
 
     # Vínculo a la línea de la orden de compra
     purchase_order_item_id = db.Column(db.Integer, db.ForeignKey('purchase_order_items.id'), nullable=True)
