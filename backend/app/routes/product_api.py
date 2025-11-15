@@ -170,4 +170,17 @@ def import_products(payload):
         print(f"--- ERROR EN IMPORTACIÓN: {e} ---")
         return jsonify(error=f"Error al procesar el archivo: {str(e)}"), 500
 
+# --- API 6: Eliminar un Producto ---
+@product_api.route('/<int:product_id>', methods=['DELETE'])
+@requires_auth(required_permission='manage:catalog')
+def delete_product(product_id, payload):
+    prod = Product.query.get_or_404(product_id)
+    try:
+        db.session.delete(prod)
+        db.session.commit()
+        return jsonify(message="Producto eliminado correctamente"), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(error=str(e)), 500
+
 

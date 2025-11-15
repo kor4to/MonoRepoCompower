@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Input } from '@/components/ui/input/index.js'
 import { Label } from '@/components/ui/label/index.js'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select/index.js'
-import { Loader2, Pencil, Upload } from 'lucide-vue-next' // <-- AÑADE Upload
+import { Loader2, Pencil, Upload, Trash2 } from 'lucide-vue-next' // <-- AÑADE Trash2
 
 const { getAccessTokenSilently } = useAuth0()
 const products = ref([])
@@ -18,7 +18,7 @@ const error = ref(null)
 
 const isDialogOpen = ref(false)
 const modalMode = ref('create')
-const isSubmitting = ref(false) // <-- ¡AÑADE ESTA LÍNEA!
+const isSubmitting = ref(false)
 const formData = ref({ id: null, sku: '', name: '', description: '', unit_of_measure: 'UND', standard_price: 0.00, category_id: null })
 // Ref para el input de archivo oculto
 const fileInput = ref(null)
@@ -113,6 +113,29 @@ async function handleFormSubmit() {
   }
 }
 
+// --- Lógica de Eliminación ---
+async function confirmDeleteProduct(productId) {
+  if (window.confirm('¿Estás seguro de que quieres eliminar este producto? Esta acción no se puede deshacer.')) {
+    await deleteProduct(productId)
+  }
+}
+
+async function deleteProduct(productId) {
+  try {
+    const token = await getAccessTokenSilently()
+    const response = await fetch(`https://192.168.1.59:5000/api/products/${productId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+    if (!response.ok) throw new Error('Error al eliminar el producto.')
+
+    alert('Producto eliminado correctamente.')
+    await fetchData() // Recargar la lista de productos
+  } catch (e) {
+    alert(e.message)
+  }
+}
+
 // --- Función para disparar el click en el input oculto ---
 function triggerImport() {
   fileInput.value.click()
@@ -183,6 +206,11 @@ async function handleFileUpload(event) {
       </div>
     </div>
 
+    <!-- Mensaje de Instrucciones para Importación de Productos -->
+    <div class="bg-blue-50 p-3 rounded-md text-sm text-blue-800 mb-4">
+      <strong>Para importar productos:</strong> El archivo Excel debe tener las columnas obligatorias: "SKU", "Nombre", "Categoria". Las columnas "Descripcion", "UM" (Unidad de Medida, ej. UND, M, KG) y "Precio" son opcionales.
+    </div>
+
     <div v-if="isLoading">Cargando...</div>
     <div v-else-if="error" class="text-red-500">{{ error }}</div>
 
@@ -209,9 +237,14 @@ async function handleFileUpload(event) {
                 S/ {{ parseFloat(prod.standard_price).toFixed(2) }}
             </TableCell>
             <TableCell>
-              <Button variant="outline" size="icon" @click="openEditModal(prod)">
-                <Pencil class="h-4 w-4" />
-              </Button>
+              <div class="flex gap-2">
+                <Button variant="outline" size="icon" @click="openEditModal(prod)">
+                  <Pencil class="h-4 w-4" />
+                </Button>
+                <Button variant="destructive" size="icon" @click="confirmDeleteProduct(prod.id)">
+                  <Trash2 class="h-4 w-4" />
+                </Button>
+              </div>
             </TableCell>
           </TableRow>
         </TableBody>

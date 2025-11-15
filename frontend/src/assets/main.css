@@ -139,3 +139,51 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* --- Estilos de Impresión --- */
+@page {
+  size: A4 portrait;
+  margin: 15mm;
+}
+
+@media print {
+  /* Ocultar elementos que no se deben imprimir */
+  .no-print {
+    display: none !important;
+  }
+
+  /* Ajustes generales del cuerpo para la impresión */
+  body {
+    font-size: 9pt; /* Reducido */
+    background: white;
+    color: black;
+  }
+
+  /* Forzar que la tabla ocupe el ancho disponible y manejar contenido */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed; /* Clave para controlar anchos */
+  }
+
+  /* Reducir padding y tamaño de fuente en celdas y cabeceras */
+  th, td {
+    font-size: 8pt; /* Reducido */
+    padding: 3px 4px; /* Reducido */
+    border: 1px solid #ccc;
+    word-break: break-word; /* Clave para texto largo */
+  }
+
+  /* Evitar que los botones de ordenamiento se impriman */
+  th button {
+    all: unset;
+    font-weight: bold;
+    display: block;
+    width: 100%;
+  }
+  
+  /* Ocultar íconos de ordenamiento */
+  th button svg {
+    display: none;
+  }
+}

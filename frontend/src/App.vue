@@ -114,7 +114,7 @@ watch(
 <template>
   <div v-if="isAuthenticated" class="flex" style="height: 100vh;">
 
-    <div class="w-64 border-r bg-white flex flex-col">
+    <div class="w-64 border-r bg-white flex flex-col print:hidden">
       <div class="p-4 border-b">
         <RouterLink to="/">
           <h1 class="text-xl font-bold text-gray-800 hover:text-gray-600">

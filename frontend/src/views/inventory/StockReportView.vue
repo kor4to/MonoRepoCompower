@@ -1,262 +1,374 @@
 <script setup>
-import { ref, onMounted, watch, computed } from 'vue'
+import { ref, onMounted, computed, h } from 'vue'
 import { useAuth0 } from '@auth0/auth0-vue'
-import { Card, CardContent } from '@/components/ui/card'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Search, FilterX, Printer } from 'lucide-vue-next'
+import {
+  useVueTable,
+  getCoreRowModel,
+  getSortedRowModel,
+  getFilteredRowModel,
+  FlexRender,
+} from '@tanstack/vue-table'
+
+// Importar componentes de UI
+import { Card } from '@/components/ui/card/index.js'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table/index.js'
+import { Input } from '@/components/ui/input/index.js'
+import { Button } from '@/components/ui/button/index.js'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuItem, DropdownMenuCheckboxItem } from '@/components/ui/dropdown-menu/index.js'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select/index.js'
+import { ArrowUpDown, ChevronDown, Printer, Tags } from 'lucide-vue-next'
 
 const { getAccessTokenSilently } = useAuth0()
 
-// --- Datos ---
-const stockReport = ref([])
+// --- State ---
+const data = ref([])
 const warehouses = ref([])
-const categories = ref([]) // Lista de categorías para el filtro
 const isLoading = ref(true)
 const error = ref(null)
+const isGeneratingLabels = ref(false)
 
-// --- Filtros ---
-const searchQuery = ref('')
-const selectedWarehouse = ref('all') // ID del almacén o 'all'
-const selectedCategory = ref('all')  // Nombre de la categoría o 'all'
+// --- Table State ---
+const sorting = ref([])
+const columnFilters = ref([])
+const columnVisibility = ref({})
 
-const currencyFormatter = new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' })
+// --- Column Definitions ---
+const columns = [
+  {
+    accessorKey: 'product_sku',
+    header: ({ column }) => h(Button, {
+      variant: 'ghost',
+      onClick: () => column.toggleSorting(column.getIsSorted() === 'asc'),
+    }, () => ['SKU', h(ArrowUpDown, { class: 'ml-2 h-4 w-4' })]),
+    label: 'SKU',
+  },
+  {
+    accessorKey: 'product_name',
+    header: 'Producto',
+    label: 'Producto',
+  },
+  {
+    accessorKey: 'warehouse_name',
+    header: 'Almacén',
+    label: 'Almacén',
+  },
+  {
+    accessorKey: 'product_location',
+    header: 'Ubicación',
+    label: 'Ubicación',
+  },
+  {
+    accessorKey: 'category_name',
+    header: 'Categoría',
+    label: 'Categoría',
+    filterFn: (row, columnId, filterValue) => {
+      if (!filterValue || filterValue.length === 0) {
+        return true
+      }
+      return filterValue.includes(row.getValue(columnId))
+    },
+    enableMultiSort: true,
+  },
+  {
+    accessorKey: 'quantity',
+    header: ({ column }) => h(Button, {
+      variant: 'ghost',
+      onClick: () => column.toggleSorting(column.getIsSorted() === 'asc'),
+    }, () => ['Cantidad', h(ArrowUpDown, { class: 'ml-2 h-4 w-4' })]),
+    cell: ({ row }) => h('div', { class: 'text-center' }, new Intl.NumberFormat('es-ES').format(row.getValue('quantity'))),
+    label: 'Cantidad',
+  },
+  {
+    accessorKey: 'unit_price',
+    header: ({ column }) => h(Button, {
+      variant: 'ghost',
+      onClick: () => column.toggleSorting(column.getIsSorted() === 'asc'),
+    }, () => ['Costo Unit.', h(ArrowUpDown, { class: 'ml-2 h-4 w-4' })]),
+    cell: ({ row }) => h('div', { class: 'text-center font-medium' }, new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }).format(row.getValue('unit_price'))),
+    label: 'Costo Unit.',
+  },
+  {
+    accessorKey: 'total_value',
+    header: ({ column }) => h(Button, {
+      variant: 'ghost',
+      onClick: () => column.toggleSorting(column.getIsSorted() === 'asc'),
+    }, () => ['Valor Total', h(ArrowUpDown, { class: 'ml-2 h-4 w-4' })]),
+    cell: ({ row }) => h('div', { class: 'text-center font-medium' }, new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }).format(row.getValue('total_value'))),
+    label: 'Valor Total',
+  },
+]
 
-// --- 1. Cargar Almacenes y Categorías (Solo una vez) ---
-async function fetchFilters() {
+// --- Table Instance ---
+const table = useVueTable({
+  get data() { return data.value },
+  columns,
+  getCoreRowModel: getCoreRowModel(),
+  getSortedRowModel: getSortedRowModel(),
+  getFilteredRowModel: getFilteredRowModel(),
+  state: {
+    get sorting() { return sorting.value },
+    get columnFilters() { return columnFilters.value },
+    get columnVisibility() { return columnVisibility.value },
+  },
+  onSortingChange: (updaterOrValue) => sorting.value = typeof updaterOrValue === 'function' ? updaterOrValue(sorting.value) : updaterOrValue,
+  onColumnFiltersChange: (updaterOrValue) => {
+    console.log('onColumnFiltersChange triggered!')
+    const newValue = typeof updaterOrValue === 'function' ? updaterOrValue(columnFilters.value) : updaterOrValue
+    console.log('New columnFilters value:', newValue)
+    columnFilters.value = newValue
+  },
+  onColumnVisibilityChange: (updaterOrValue) => columnVisibility.value = typeof updaterOrValue === 'function' ? updaterOrValue(columnVisibility.value) : updaterOrValue,
+})
+
+// --- Data Fetching ---
+onMounted(async () => {
   try {
     const token = await getAccessTokenSilently()
-    const headers = { 'Authorization': `Bearer ${token}` }
-
-    const whRes = await fetch('https://192.168.1.59:5000/api/warehouses', { headers })
-    if (whRes.ok) warehouses.value = await whRes.json()
-
-    const catRes = await fetch('https://192.168.1.59:5000/api/categories', { headers })
-    if (catRes.ok) categories.value = await catRes.json()
-  } catch (e) {
-    console.error("Error cargando filtros:", e)
-  }
-}
-
-// --- 2. Cargar Reporte (Se llama al iniciar y al cambiar almacén) ---
-async function fetchReport() {
-  isLoading.value = true
-  error.value = null
-  try {
-    const token = await getAccessTokenSilently()
-
-    // Construimos la URL con el parámetro de almacén si es necesario
-    let url = 'https://192.168.1.59:5000/api/inventory/stock-report'
-    if (selectedWarehouse.value !== 'all') {
-      url += `?warehouse_id=${selectedWarehouse.value}`
-    }
-
-    const response = await fetch(url, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-
-    if (!response.ok) throw new Error('Error cargando reporte de stock')
-    stockReport.value = await response.json()
-
+    const [reportRes, whRes] = await Promise.all([
+      fetch('https://192.168.1.59:5000/api/inventory/stock-report', { headers: { 'Authorization': `Bearer ${token}` } }),
+      fetch('https://192.168.1.59:5000/api/warehouses', { headers: { 'Authorization': `Bearer ${token}` } })
+    ])
+    if (!reportRes.ok) throw new Error('No se pudo cargar el reporte.')
+    if (!whRes.ok) throw new Error('No se pudieron cargar los almacenes.')
+    data.value = await reportRes.json()
+    warehouses.value = await whRes.json()
   } catch (e) {
     error.value = e.message
   } finally {
     isLoading.value = false
   }
+})
+
+// --- Computed Properties & Handlers ---
+const uniqueCategories = computed(() => {
+  const categories = table.getCoreRowModel().rows.map(row => row.original.category_name)
+  return [...new Set(categories)].filter(Boolean)
+})
+
+const categoryFilter = computed(() => {
+  return table.getColumn('category_name')?.getFilterValue() || []
+})
+
+const totalValue = computed(() => {
+  const total = table.getRowModel().rows.reduce((sum, row) => sum + row.original.total_value, 0)
+  return new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }).format(total)
+})
+function handleWarehouseFilterChange(value) {
+  const filterValue = value === 'all' ? null : value
+  table.getColumn('warehouse_name')?.setFilterValue(filterValue)
 }
 
-// --- HELPER: Encontrar todos los IDs de una familia (Padre + Hijos) ---
-function getCategoryFamilyIds(parentId, allCategories) {
-  // 1. Empezamos con el ID del padre seleccionado
-  const familyIds = new Set([parentId])
+function handleCategoryFilterChange(category) {
+  console.log(`--- Handling Category Click ---`)
+  console.log(`Category clicked: ${category}`)
 
-  // 2. Función recursiva para buscar hijos
-  function findChildren(currentId) {
-    const children = allCategories.filter(c => c.parent_id === currentId)
-    children.forEach(child => {
-      familyIds.add(child.id)
-      findChildren(child.id) // Buscar nietos...
-    })
+  const column = table.getColumn('category_name')
+  if (!column) {
+    console.error('Category column not found!')
+    return
   }
 
-  findChildren(parentId)
-  return familyIds
+  const currentFilter = (column.getFilterValue() || [])
+  console.log('Current filter array:', currentFilter)
+  
+  let newFilter
+
+  // If the category is already in the filter, this click should remove it.
+  if (currentFilter.includes(category)) {
+    newFilter = currentFilter.filter(c => c !== category)
+  } 
+  // Otherwise, this click should add it.
+  else {
+    newFilter = [...currentFilter, category]
+  }
+  console.log('New filter array:', newFilter)
+
+  const filterValueToSet = newFilter.length > 0 ? newFilter : undefined
+  console.log('Value being set to filter:', filterValueToSet)
+
+  column.setFilterValue(filterValueToSet)
 }
 
-// --- 3. Filtrado Local (ACTUALIZADO) ---
-const filteredStock = computed(() => {
-  return stockReport.value.filter(item => {
-    // Filtro de Texto
-    const searchLower = searchQuery.value.toLowerCase()
-    const matchesSearch =
-      item.product_name.toLowerCase().includes(searchLower) ||
-      item.product_sku.toLowerCase().includes(searchLower)
+function printReport() {
+  window.print()
+}
 
-    // Filtro de Categoría (¡Lógica Inteligente!)
-    let matchesCategory = true
-    if (selectedCategory.value !== 'all') {
-      // Buscamos el objeto de la categoría seleccionada
-      const selectedCatObj = categories.value.find(c => c.name === selectedCategory.value)
+async function generateLabels() {
+  isGeneratingLabels.value = true
+  try {
+    const token = await getAccessTokenSilently()
+    const filteredProducts = table.getFilteredRowModel().rows.map(row => row.original)
 
-      if (selectedCatObj) {
-        // Obtenemos todos los IDs de la familia (padre e hijos)
-        const familyIds = getCategoryFamilyIds(selectedCatObj.id, categories.value)
-        // Verificamos si el producto pertenece a alguno de esos IDs
-        matchesCategory = familyIds.has(item.category_id)
-      }
+    if (filteredProducts.length === 0) {
+      alert('No hay productos en la tabla para generar etiquetas.')
+      return
     }
 
-    return matchesSearch && matchesCategory
-  })
-})
+    const response = await fetch('https://192.168.1.59:5000/api/inventory/generate-labels', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ products: filteredProducts })
+    })
 
-// --- Watchers ---
-// Cuando cambia el almacén, recargamos los datos del servidor
-watch(selectedWarehouse, () => {
-  fetchReport()
-})
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Error al generar el PDF de etiquetas.')
+    }
 
-function clearFilters() {
-  searchQuery.value = ''
-  selectedWarehouse.value = 'all'
-  selectedCategory.value = 'all'
+    const blob = await response.blob()
+    const url = window.URL.createObjectURL(blob)
+    window.open(url, '_blank')
+    window.URL.revokeObjectURL(url)
+
+  } catch (e) {
+    alert(e.message)
+  } finally {
+    isGeneratingLabels.value = false
+  }
 }
-
-function printReport() { window.print() }
-
-function getStockStatus(quantity) {
-  if (quantity <= 0) return { label: 'Sin Stock', variant: 'destructive' }
-  if (quantity < 10) return { label: 'Bajo', variant: 'warning' }
-  return { label: 'Normal', variant: 'secondary' }
-}
-
-onMounted(() => {
-  fetchFilters()
-  fetchReport()
-})
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-4">
+    <h1 class="text-3xl font-bold print:hidden">Reportes y Maestro de Stock</h1>
 
-    <div class="flex flex-col md:flex-row justify-between items-center gap-4 no-print">
-      <div>
-        <h1 class="text-3xl font-bold tracking-tight">Inventario Actual</h1>
-        <p class="text-muted-foreground">Vista consolidada y valorizada del stock.</p>
+    <!-- Filter & Controls Bar -->
+    <div class="flex items-center justify-between print:hidden no-print">
+      <div class="flex items-center gap-2">
+        <Input
+          class="max-w-sm"
+          placeholder="Filtrar por nombre de producto..."
+          :model-value="table.getColumn('product_name')?.getFilterValue()"
+          @update:model-value="table.getColumn('product_name')?.setFilterValue($event)"
+        />
+        <Input
+          class="max-w-sm"
+          placeholder="Filtrar por ubicación..."
+          :model-value="table.getColumn('product_location')?.getFilterValue()"
+          @update:model-value="table.getColumn('product_location')?.setFilterValue($event)"
+        />
+        
+        <Select @update:model-value="handleWarehouseFilterChange">
+          <SelectTrigger class="w-[180px]">
+            <SelectValue placeholder="Todos los Almacenes" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos los Almacenes</SelectItem>
+            <SelectItem v-for="wh in warehouses" :key="wh.id" :value="wh.name">
+              {{ wh.name }}
+            </SelectItem>
+          </SelectContent>
+        </Select>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger as-child>
+            <Button variant="outline" class="ml-auto">
+              Categorías <ChevronDown class="ml-2 h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuCheckboxItem
+              v-for="category in uniqueCategories"
+              :key="category"
+              class="capitalize"
+              :checked="categoryFilter.includes(category)"
+              @click.prevent="handleCategoryFilterChange(category)"
+            >
+              {{ category }}
+            </DropdownMenuCheckboxItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
-      <Button variant="outline" @click="printReport">
-        <Printer class="mr-2 h-4 w-4" /> Imprimir Reporte
-      </Button>
+
+      <div class="flex items-center gap-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger as-child>
+            <Button variant="outline" class="ml-auto">
+              Columnas <ChevronDown class="ml-2 h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              v-for="column in table.getAllColumns().filter((column) => column.getCanHide())"
+              :key="column.id"
+              class="flex items-center space-x-2"
+            >
+              <input
+                type="checkbox"
+                :id="`column-toggle-${column.id}`"
+                :checked="column.getIsVisible()"
+                @change="(e) => column.toggleVisibility(e.target.checked)"
+                @click.stop
+                class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+              />
+              <label :for="`column-toggle-${column.id}`" class="text-sm cursor-pointer" @click.stop>
+                {{ column.columnDef.label }}
+              </label>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <Button variant="outline" @click="printReport">
+          <Printer class="mr-2 h-4 w-4" />
+          Imprimir
+        </Button>
+        <Button variant="outline" @click="generateLabels" :disabled="isGeneratingLabels">
+          <Tags class="mr-2 h-4 w-4" />
+          <span v-if="isGeneratingLabels">Generando...</span>
+          <span v-else>Generar Etiquetas</span>
+        </Button>
+      </div>
     </div>
 
-    <Card class="no-print">
-      <CardContent class="p-4 flex flex-col md:flex-row items-center justify-center gap-4">
-
-        <div class="w-full md:w-[200px]">
-          <Select v-model="selectedCategory">
-            <SelectTrigger>
-              <SelectValue placeholder="Todas las Categorías" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas las Categorías</SelectItem>
-
-              <SelectItem v-for="cat in categories" :key="cat.id" :value="cat.name">
-                <span v-if="cat.parent_id" class="pl-2 text-gray-500">↳ </span>
-                {{ cat.name }}
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div class="relative w-full md:w-[400px]">
-          <Search class="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por nombre o SKU..."
-            v-model="searchQuery"
-            class="pl-8"
-          />
-        </div>
-
-        <div class="w-full md:w-[200px]">
-          <Select v-model="selectedWarehouse">
-            <SelectTrigger>
-              <SelectValue placeholder="Todos los Almacenes" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos los Almacenes</SelectItem>
-              <SelectItem v-for="wh in warehouses" :key="wh.id" :value="wh.id.toString()">
-                {{ wh.name }}
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <Button variant="ghost" size="icon" @click="clearFilters" title="Limpiar Filtros">
-          <FilterX class="h-4 w-4" />
-        </Button>
-
-      </CardContent>
-    </Card>
-
-    <div v-if="isLoading" class="text-center py-10">Cargando inventario...</div>
-    <div v-else-if="error" class="text-red-500 p-4 bg-red-50 rounded">{{ error }}</div>
-
-    <Card v-else>
+    <!-- Table -->
+    <div v-if="isLoading">Cargando reporte...</div>
+    <div v-else-if="error" class="text-red-500">{{ error }}</div>
+    <Card v-else class="print:text-xs">
       <Table>
         <TableHeader>
-          <TableRow>
-            <TableHead>SKU</TableHead>
-            <TableHead>Producto</TableHead>
-            <TableHead>Categoría</TableHead> <TableHead class="text-right">Precio Unit.</TableHead>
-            <TableHead class="text-right">Cantidad</TableHead>
-            <TableHead class="text-right">Valor Total</TableHead>
-            <TableHead class="text-center">Estado</TableHead>
+          <TableRow v-for="headerGroup in table.getHeaderGroups()" :key="headerGroup.id">
+            <TableHead v-for="header in headerGroup.headers" :key="header.id" class="print:p-1">
+              <FlexRender
+                v-if="!header.isPlaceholder"
+                :render="header.column.columnDef.header"
+                :props="header.getContext()"
+              />
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          <TableRow v-if="filteredStock.length === 0">
-            <TableCell colspan="7" class="text-center h-24 text-muted-foreground">
-              No se encontraron productos.
-            </TableCell>
-          </TableRow>
-
-          <TableRow v-for="(item, index) in filteredStock" :key="index">
-            <TableCell class="font-mono text-sm">{{ item.product_sku }}</TableCell>
-            <TableCell class="font-medium">{{ item.product_name }}</TableCell>
-            <TableCell>
-              <Badge variant="outline">{{ item.category_name }}</Badge> </TableCell>
-
-            <TableCell class="text-right text-gray-500">
-              {{ currencyFormatter.format(item.unit_price) }}
-            </TableCell>
-
-            <TableCell class="text-right font-bold" :class="{'text-red-600': item.quantity <= 0}">
-              {{ item.quantity }}
-            </TableCell>
-
-            <TableCell class="text-right font-bold text-green-700">
-              {{ currencyFormatter.format(item.total_value) }}
-            </TableCell>
-
-            <TableCell class="text-center">
-              <Badge :variant="getStockStatus(item.quantity).variant">
-                {{ getStockStatus(item.quantity).label }}
-              </Badge>
-            </TableCell>
-          </TableRow>
+          <template v-if="table.getRowModel().rows?.length">
+            <TableRow
+              v-for="row in table.getRowModel().rows"
+              :key="row.id"
+              :data-state="row.getIsSelected() && 'selected'"
+            >
+              <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id" class="print:p-1">
+                <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
+              </TableCell>
+            </TableRow>
+          </template>
+          <template v-else>
+            <TableRow>
+              <TableCell :colspan="columns.length" class="h-24 text-center print:p-1">
+                No hay resultados.
+              </TableCell>
+            </TableRow>
+          </template>
         </TableBody>
       </Table>
     </Card>
+
+    <!-- Footer Summary -->
+    <div class="flex items-center justify-end space-x-2 py-4 print:hidden no-print">
+      <div class="flex-1 text-sm text-muted-foreground">
+        {{ table.getFilteredRowModel().rows.length }} de {{ data.length }} fila(s) mostradas.
+      </div>
+      <div class="font-bold text-lg">
+        Valor Total Filtrado: {{ totalValue }}
+      </div>
+    </div>
   </div>
 </template>
-
-<style>
-@media print {
-  .no-print { display: none !important; }
-  body { background: white; }
-  .card { border: none; box-shadow: none; }
-}
-</style>
