@@ -34,18 +34,20 @@ class Product(db.Model):
 
     # --- ¡NUEVO CAMPO! Precio Estándar / Referencial ---
     standard_price = db.Column(db.Numeric(10, 2), nullable=False, default=0.00)
-    location = db.Column(db.String(100), nullable=True) # Ubicación física/estante
+    location = db.Column(db.Text, nullable=True) # Ubicaciones físicas/estantes, separadas por comas
 
     category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=False)
 
     def to_dict(self):
+        # Convierte el string de ubicaciones separadas por comas en una lista
+        locations = [loc.strip() for loc in self.location.split(',')] if self.location else []
         return {
             'id': self.id,
             'sku': self.sku,
             'name': self.name,
             'unit_of_measure': self.unit_of_measure,
             'standard_price': float(self.standard_price),
-            'location': self.location, # <-- Incluimos la ubicación
+            'location': locations, # <-- Devuelve una lista
             'category_name': self.category.name if self.category else 'N/A',
             'category_id': self.category_id
         }

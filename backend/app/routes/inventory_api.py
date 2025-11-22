@@ -58,34 +58,36 @@ def generate_labels(payload):
         y = margin_y
 
         for product in products:
-            # --- Dibujar el borde del sticker ---
-            pdf.rect(x, y, label_width, label_height)
+            quantity = int(product.get('quantity', 1))
+            for _ in range(quantity):
+                # --- Dibujar el borde del sticker ---
+                pdf.rect(x, y, label_width, label_height)
 
-            # --- Logo (Centrado y sin distorsión) ---
-            logo_h = 8 # Altura fija para el logo
-            logo_w = logo_h * aspect_ratio # Ancho calculado para mantener proporción
-            x_logo = x + (label_width - logo_w) / 2
-            pdf.image(logo_path, x_logo, y + 2, w=logo_w, h=logo_h)
+                # --- Logo (Centrado y sin distorsión) ---
+                logo_h = 8 # Altura fija para el logo
+                logo_w = logo_h * aspect_ratio # Ancho calculado para mantener proporción
+                x_logo = x + (label_width - logo_w) / 2
+                pdf.image(logo_path, x_logo, y + 2, w=logo_w, h=logo_h)
 
-            # --- SKU ---
-            pdf.set_font('Arial', 'B', 12)
-            pdf.set_xy(x + 1, y + 12) # Se baja un poco el SKU para dar espacio al logo
-            pdf.cell(label_width - 2, 5, f"SKU: {product.get('product_sku', 'N/A')}", align='C')
+                # --- SKU ---
+                pdf.set_font('Arial', 'B', 12)
+                pdf.set_xy(x + 1, y + 12) # Se baja un poco el SKU para dar espacio al logo
+                pdf.cell(label_width - 2, 5, f"SKU: {product.get('product_sku', 'N/A')}", align='C')
 
-            # --- Nombre del Producto ---
-            pdf.set_font('Arial', '', 8)
-            pdf.set_xy(x + 1, y + 18) # Se baja el nombre
-            # MultiCell para auto-ajuste de texto
-            pdf.multi_cell(label_width - 2, 5, product.get('product_name', 'Sin Nombre'), align='C')
+                # --- Nombre del Producto ---
+                pdf.set_font('Arial', '', 8)
+                pdf.set_xy(x + 1, y + 18) # Se baja el nombre
+                # MultiCell para auto-ajuste de texto
+                pdf.multi_cell(label_width - 2, 5, product.get('product_name', 'Sin Nombre'), align='C')
 
-            # --- Avanzar a la siguiente posición ---
-            x += label_width + gap_x
-            if x + label_width > pdf.w - margin_x:
-                x = margin_x
-                y += label_height + gap_y
-                if y + label_height > pdf.h - margin_y:
-                    pdf.add_page()
-                    y = margin_y
+                # --- Avanzar a la siguiente posición ---
+                x += label_width + gap_x
+                if x + label_width > pdf.w - margin_x:
+                    x = margin_x
+                    y += label_height + gap_y
+                    if y + label_height > pdf.h - margin_y:
+                        pdf.add_page()
+                        y = margin_y
 
         # --- Generar y enviar el PDF ---
         pdf_output_path = os.path.join(current_app.instance_path, 'etiquetas.pdf')

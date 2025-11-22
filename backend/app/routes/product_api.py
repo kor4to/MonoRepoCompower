@@ -1,9 +1,10 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, send_file
 from ..models.product_catalog import Product, Category # <-- Importa Category
 from ..extensions import db # <-- Importa db
 from ..services.auth_service import requires_auth
 from sqlalchemy import or_
 import pandas as pd
+import io
 
 product_api = Blueprint('product_api', __name__)
 
@@ -54,13 +55,18 @@ def create_product(payload):
         return jsonify(error="SKU, Nombre y Categoría son requeridos"), 400
 
     try:
+        # Procesa las ubicaciones: convierte lista a string
+        locations_list = data.get('location', [])
+        location_str = ', '.join(locations_list) if isinstance(locations_list, list) else None
+
         new_prod = Product(
             sku=data['sku'],
             name=data['name'],
             description=data.get('description', ''),
             unit_of_measure=data.get('um', 'UND'),
             standard_price=data.get('standard_price', 0.00),
-            category_id=data['category_id']
+            category_id=data['category_id'],
+            location=location_str # Guarda el string
         )
         db.session.add(new_prod)
         db.session.commit()
@@ -84,6 +90,11 @@ def update_product(product_id, payload):
         prod.unit_of_measure = data.get('um', prod.unit_of_measure)
         prod.standard_price = data.get('standard_price', prod.standard_price)
         prod.category_id = data.get('category_id', prod.category_id)
+
+        # Procesa las ubicaciones si se envían
+        if 'location' in data:
+            locations_list = data.get('location', [])
+            prod.location = ', '.join(locations_list) if isinstance(locations_list, list) else None
 
         db.session.commit()
         return jsonify(prod.to_dict())
@@ -112,20 +123,33 @@ def import_products(payload):
         if not all(col in df.columns for col in required_columns):
             return jsonify(error=f"El Excel debe tener las columnas: {', '.join(required_columns)}"), 400
 
+        prefix_counters = {} # Diccionario para contar prefijos
         created_count = 0
         updated_count = 0
         errors = []
 
         # 3. Iterar sobre cada fila
         for index, row in df.iterrows():
-            sku = str(row['SKU']).strip()
+            sku_input = str(row['SKU']).strip()
             name = str(row['Nombre']).strip()
             cat_name = str(row['Categoria']).strip()
+
+            # Lógica de generación de SKU
+            # Si el SKU es alfabético y en mayúsculas, trátalo como prefijo
+            if sku_input.isalpha() and sku_input.isupper():
+                prefix = sku_input
+                # Obtiene el siguiente número para este prefijo, o empieza en 1
+                count = prefix_counters.get(prefix, 0) + 1
+                prefix_counters[prefix] = count
+                # Genera el nuevo SKU con formato de 3 dígitos (e.g., CEL-001)
+                sku = f"{prefix}-{count:03d}"
+            else:
+                sku = sku_input # Usa el SKU tal como está
 
             # Buscar la categoría por nombre
             category = Category.query.filter(db.func.lower(Category.name) == cat_name.lower()).first()
             if not category:
-                # Si no existe, la creamos automáticamente (Opcional, pero útil)
+                # Si no existe, la creamos automáticamente
                 category = Category(name=cat_name, description="Creada por importación")
                 db.session.add(category)
                 db.session.flush() # Para obtener el ID inmediatamente
@@ -183,4 +207,43 @@ def delete_product(product_id, payload):
         db.session.rollback()
         return jsonify(error=str(e)), 500
 
+# --- API 7: Exportar Productos a Excel ---
+@product_api.route('/export', methods=['GET'])
+@requires_auth(required_permission='view:catalog')
+def export_products(payload):
+    """
+    Exporta todos los productos a un archivo Excel.
+    """
+    try:
+        products = Product.query.order_by(Product.name).all()
 
+        # Prepara los datos para el DataFrame
+        data = []
+        for p in products:
+            data.append({
+                'SKU': p.sku,
+                'Nombre': p.name,
+                'Categoria': p.category.name if p.category else '',
+                'Descripcion': p.description,
+                'UM': p.unit_of_measure,
+                'Precio': p.standard_price
+            })
+
+        df = pd.DataFrame(data)
+
+        # Crea un archivo Excel en memoria
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name='Productos')
+        output.seek(0)
+
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name='productos.xlsx'
+        )
+
+    except Exception as e:
+        print(f"--- ERROR EN EXPORTACIÓN: {e} ---")
+        return jsonify(error=f"Error al exportar el archivo: {str(e)}"), 500

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue' // <-- AÑADE computed
 import { useAuth0 } from '@auth0/auth0-vue'
 import { Button } from '@/components/ui/button/index.js'
 import { Card } from '@/components/ui/card/index.js'
@@ -8,22 +8,31 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Input } from '@/components/ui/input/index.js'
 import { Label } from '@/components/ui/label/index.js'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select/index.js'
-import { Loader2, Pencil, Upload, Trash2 } from 'lucide-vue-next' // <-- AÑADE Trash2
+import { Loader2, Pencil, Upload, Trash2, Download } from 'lucide-vue-next'
 
 const { getAccessTokenSilently } = useAuth0()
 const products = ref([])
-const categories = ref([]) // ¡Necesitamos las categorías para el modal!
+const categories = ref([])
 const isLoading = ref(true)
 const error = ref(null)
 
 const isDialogOpen = ref(false)
 const modalMode = ref('create')
 const isSubmitting = ref(false)
-const formData = ref({ id: null, sku: '', name: '', description: '', unit_of_measure: 'UND', standard_price: 0.00, category_id: null })
-// Ref para el input de archivo oculto
+// MODIFICADO: Añade 'location' al formulario
+const formData = ref({ id: null, sku: '', name: '', description: '', unit_of_measure: 'UND', standard_price: 0.00, category_id: null, location: [] })
 const fileInput = ref(null)
 const isImporting = ref(false)
+const isDownloading = ref(false)
 
+// --- NUEVO: Computed property para el input de ubicaciones ---
+// Esto permite un enlace de doble vía entre el array de formData y el string del input
+const locationInput = computed({
+  get: () => formData.value.location.join(', '),
+  set: (val) => {
+    formData.value.location = val.split(',').map(s => s.trim())
+  }
+})
 
 
 // --- Cargar AMBOS, productos y categorías ---
@@ -32,14 +41,12 @@ async function fetchData() {
   error.value = null
   try {
     const token = await getAccessTokenSilently()
-    // Cargar Productos
     const prodRes = await fetch('https://192.168.1.59:5000/api/products', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
     if (!prodRes.ok) throw new Error('No se pudieron cargar los productos.')
     products.value = await prodRes.json()
 
-    // Cargar Categorías
     const catRes = await fetch('https://192.168.1.59:5000/api/categories', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
@@ -57,14 +64,15 @@ onMounted(fetchData)
 // --- Lógica de Modales ---
 function openCreateModal() {
   modalMode.value = 'create'
-  formData.value = { id: null, sku: '', name: '', description: '', um: 'UND', category_id: null }
+  // MODIFICADO: Resetea el formulario incluyendo 'location'
+  formData.value = { id: null, sku: '', name: '', description: '', um: 'UND', category_id: null, location: [] }
   isDialogOpen.value = true
 }
 
 function openEditModal(product) {
   modalMode.value = 'edit'
-  // El 'um' no está en el to_dict(), así que lo asignamos por separado
   const productData = products.value.find(p => p.id === product.id)
+  // El backend ahora devuelve 'location' como un array, así que la copia directa funciona
   formData.value = { ...productData }
   isDialogOpen.value = true
 }
@@ -79,18 +87,17 @@ async function handleFormSubmit() {
     method = 'PUT'
   }
 
-  // --- ¡AQUÍ ESTÁ LA CORRECCIÓN! ---
-  // Creamos un payload explícito para asegurarnos de enviar todos los campos,
-  // incluyendo el nuevo 'standard_price'.
+  // MODIFICADO: Añade 'location' al payload
   const payload = {
     sku: formData.value.sku,
     name: formData.value.name,
     description: formData.value.description,
-    um: formData.value.unit_of_measure, // Asegúrate que el backend espera 'um' o 'unit_of_measure'
-    standard_price: formData.value.standard_price, // <-- ¡IMPORTANTE!
-    category_id: formData.value.category_id
+    um: formData.value.unit_of_measure,
+    standard_price: formData.value.standard_price,
+    category_id: formData.value.category_id,
+    // El backend espera una lista de strings
+    location: formData.value.location.filter(loc => loc) // Filtra strings vacíos
   }
-  // --------------------------------
 
   try {
     const token = await getAccessTokenSilently()
@@ -100,7 +107,7 @@ async function handleFormSubmit() {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(payload) // Enviamos el payload
+      body: JSON.stringify(payload)
     })
     if (!response.ok) throw new Error('Error al guardar.')
 
@@ -130,85 +137,89 @@ async function deleteProduct(productId) {
     if (!response.ok) throw new Error('Error al eliminar el producto.')
 
     alert('Producto eliminado correctamente.')
-    await fetchData() // Recargar la lista de productos
+    await fetchData()
   } catch (e) {
     alert(e.message)
   }
 }
 
-// --- Función para disparar el click en el input oculto ---
+// --- Lógica de Importación/Exportación ---
 function triggerImport() {
   fileInput.value.click()
 }
 
-// --- Función para manejar la subida del archivo ---
 async function handleFileUpload(event) {
   const file = event.target.files[0]
   if (!file) return
-
   isImporting.value = true
-
-  const formData = new FormData()
-  formData.append('file', file)
-
+  const importFormData = new FormData()
+  importFormData.append('file', file)
   try {
     const token = await getAccessTokenSilently()
     const response = await fetch('https://192.168.1.59:5000/api/products/import', {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`
-        // NOTA: No pongas 'Content-Type': 'application/json' aquí.
-        // El navegador lo pondrá automáticamente como 'multipart/form-data'
-      },
-      body: formData
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: importFormData
     })
-
     const result = await response.json()
-
     if (!response.ok) throw new Error(result.error || 'Error en la importación')
-
     alert(`Importación Exitosa:\nCreados: ${result.created}\nActualizados: ${result.updated}`)
-    await fetchData() // Recargar la tabla
-
+    await fetchData()
   } catch (e) {
     alert(e.message)
   } finally {
     isImporting.value = false
-    event.target.value = '' // Limpiar el input para poder subir el mismo archivo de nuevo si se quiere
+    event.target.value = ''
   }
 }
 
-
-
+async function downloadExcel() {
+  isDownloading.value = true
+  try {
+    const token = await getAccessTokenSilently()
+    const response = await fetch('https://192.168.1.59:5000/api/products/export', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+    if (!response.ok) throw new Error('Error al generar el archivo.')
+    const blob = await response.blob()
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'productos.xlsx'
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    window.URL.revokeObjectURL(url)
+  } catch (e) {
+    alert(e.message)
+  } finally {
+    isDownloading.value = false
+  }
+}
 </script>
 
 <template>
   <div>
     <div class="flex justify-between items-center mb-4">
       <h1 class="text-3xl font-bold">Gestión de Productos</h1>
-
       <div class="flex gap-2">
-        <input
-          type="file"
-          ref="fileInput"
-          class="hidden"
-          accept=".xlsx, .xls"
-          @change="handleFileUpload"
-        />
-
+        <input type="file" ref="fileInput" class="hidden" accept=".xlsx, .xls" @change="handleFileUpload" />
         <Button variant="outline" @click="triggerImport" :disabled="isImporting">
           <Loader2 v-if="isImporting" class="h-4 w-4 animate-spin mr-2" />
           <Upload v-else class="h-4 w-4 mr-2" />
           Importar Excel
         </Button>
-
+        <Button variant="outline" @click="downloadExcel" :disabled="isDownloading">
+          <Loader2 v-if="isDownloading" class="h-4 w-4 animate-spin mr-2" />
+          <Download v-else class="h-4 w-4 mr-2" />
+          Descargar Excel
+        </Button>
         <Button @click="openCreateModal">Crear Producto</Button>
       </div>
     </div>
 
-    <!-- Mensaje de Instrucciones para Importación de Productos -->
     <div class="bg-blue-50 p-3 rounded-md text-sm text-blue-800 mb-4">
-      <strong>Para importar productos:</strong> El archivo Excel debe tener las columnas obligatorias: "SKU", "Nombre", "Categoria". Las columnas "Descripcion", "UM" (Unidad de Medida, ej. UND, M, KG) y "Precio" son opcionales.
+      <strong>Para importar productos:</strong> El archivo Excel debe tener las columnas obligatorias: "SKU", "Nombre", "Categoria". Las columnas "Descripcion", "UM" y "Precio" son opcionales.
     </div>
 
     <div v-if="isLoading">Cargando...</div>
@@ -221,10 +232,10 @@ async function handleFileUpload(event) {
             <TableHead>SKU</TableHead>
             <TableHead>Nombre</TableHead>
             <TableHead>Categoría</TableHead>
+            <TableHead>Ubicaciones</TableHead> <!-- NUEVA COLUMNA -->
             <TableHead>UM</TableHead>
             <TableHead class="text-right">Precio Ref.</TableHead>
             <TableHead>Acciones</TableHead>
-
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -232,10 +243,10 @@ async function handleFileUpload(event) {
             <TableCell class="font-medium">{{ prod.sku }}</TableCell>
             <TableCell>{{ prod.name }}</TableCell>
             <TableCell>{{ prod.category_name }}</TableCell>
+            <!-- NUEVA CELDA: Muestra ubicaciones unidas por coma -->
+            <TableCell>{{ prod.location.join(', ') }}</TableCell>
             <TableCell>{{ prod.unit_of_measure }}</TableCell>
-            <TableCell class="text-right">
-                S/ {{ parseFloat(prod.standard_price).toFixed(2) }}
-            </TableCell>
+            <TableCell class="text-right">S/ {{ parseFloat(prod.standard_price).toFixed(2) }}</TableCell>
             <TableCell>
               <div class="flex gap-2">
                 <Button variant="outline" size="icon" @click="openEditModal(prod)">
@@ -265,6 +276,11 @@ async function handleFileUpload(event) {
             <Label for="name" class="text-right">Nombre</Label>
             <Input id="name" v-model="formData.name" class="col-span-3" />
           </div>
+          <!-- NUEVO CAMPO DE UBICACIONES -->
+          <div class="grid grid-cols-4 items-center gap-4">
+            <Label for="location" class="text-right">Ubicaciones</Label>
+            <Input id="location" v-model="locationInput" class="col-span-3" placeholder="Ej: Estante A, Pasillo 2" />
+          </div>
           <div class="grid grid-cols-4 items-center gap-4">
             <Label for="um" class="text-right">UM (Ej. UND, M, KG)</Label>
             <Input id="um" v-model="formData.unit_of_measure" class="col-span-3" />
@@ -277,9 +293,7 @@ async function handleFileUpload(event) {
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  <SelectItem v-for="cat in categories" :key="cat.id" :value="cat.id">
-                    {{ cat.name }}
-                  </SelectItem>
+                  <SelectItem v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</SelectItem>
                 </SelectGroup>
               </SelectContent>
             </Select>
